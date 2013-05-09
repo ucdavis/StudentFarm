@@ -109,6 +109,16 @@ table.two-btn-first-row tr td:first-child { width: 100px;  }
 table.three-btn-first-row tr td:first-child { width: 150px;  }
 table.table td { vertical-align: middle; }
 
+.main-action {
+    float: right;
+    margin-bottom: 1em;
+}
+
+td.actions-column {
+    text-align: right;
+    width: 15%;
+}
+
 /*
     Menu Bars
 -------------------------------------------------------------*/

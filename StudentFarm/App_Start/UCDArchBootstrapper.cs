@@ -3,6 +3,7 @@ using Castle.Windsor;
 using Microsoft.Practices.ServiceLocation;
 using StudentFarm.App_Start;
 using StudentFarm.Controllers;
+using StudentFarm.Models;
 using UCDArch.Data.NHibernate;
 using UCDArch.Web.IoC;
 using UCDArch.Web.ModelBinder;
@@ -19,8 +20,8 @@ namespace StudentFarm.App_Start
         {
             ModelBinders.Binders.DefaultBinder = new UCDArchModelBinder();
 
-            //NHibernateSessionConfiguration.Mappings.UseFluentMappings(typeof(Customer).Assembly);
-            
+            NHibernateSessionConfiguration.Mappings.UseFluentMappings(typeof(Crop).Assembly);
+
             IWindsorContainer container = InitializeServiceLocator();
         }
 
@@ -30,7 +31,7 @@ namespace StudentFarm.App_Start
 
             ControllerBuilder.Current.SetControllerFactory(new WindsorControllerFactory(container));
 
-            container.RegisterControllers(typeof(SampleController).Assembly);
+            container.RegisterControllers(typeof(HomeController).Assembly);
             ComponentRegistrar.AddComponentsTo(container);
 
             ServiceLocator.SetLocatorProvider(() => new WindsorServiceLocator(container));

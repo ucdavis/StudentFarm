@@ -1,0 +1,274 @@
+﻿@model IQueryable<StudentFarm.Models.Crop>
+
+@{
+    ViewBag.Title = "Manage Crop Descriptions";
+}
+
+@section subhead {
+<h2>Manage Crop Descriptions</h2>
+}
+
+<a class="btn btn-primary main-action" href="#add_crop" role="button" data-toggle="modal">
+    <i class="icon-plus"></i> Add New Crop
+</a>
+<div id="add_crop" class="modal hide">
+    <div class="modal-header">
+        <a class="close" href="#" data-dismiss="modal" aria-hidden="true">&times;</a>
+        <h3>Add New Crop</h3>
+    </div>
+    <div class="modal-body">
+        <div id="add_crop_msg"><!-- Placeholder for alert to be inserted from XHR. Kinda hackish. --></div>
+        <form id="add_crop_frm" class="form-horizontal">
+            <div class="control-group">
+                <label class="control-label" for="name">Name</label>
+                <div class="controls">
+                    <input type="text" id="name" name="name" placeholder="Crop Name" />
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="desc">Description</label>
+                <div class="controls">
+                    <textarea id="desc" name="desc" rows="5"></textarea>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox" id="organic" name="organic" /> Organic
+                    </label>
+                </div>
+            </div>
+            @Html.AntiForgeryToken()
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn" data-dismiss="modal">Cancel</a> <a id="add_crop_btn" href="#" class="btn btn-primary">Add</a>
+    </div>
+</div>
+
+<div id="edit_crop" class="modal hide">
+    <div class="modal-header">
+        <a class="close" href="#" data-dismiss="modal" aria-hidden="true">&times;</a>
+        <h3></h3>
+    </div>
+    <div class="modal-body">
+        <div id="edit_crop_msg"><!-- Placeholder for alert to be inserted from XHR. Kinda hackish. --></div>
+        <form id="edit_crop_frm" class="form-horizontal">
+            <div class="control-group">
+                <label class="control-label" for="ename">Name</label>
+                <div class="controls">
+                    <input type="text" id="ename" name="name" placeholder="Crop Name" />
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="edesc">Description</label>
+                <div class="controls">
+                    <textarea id="edesc" name="desc" rows="5"></textarea>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <label class="checkbox">
+                        <input type="checkbox" id="eorganic" name="organic" /> Organic
+                    </label>
+                </div>
+            </div>
+            <input type="hidden" name="cropid" value="" />
+            @Html.AntiForgeryToken()
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#" class="btn" data-dismiss="modal">Cancel</a> <a id="edit_crop_btn" href="#" class="btn btn-primary">Edit</a>
+    </div>
+</div>
+
+<table class="table table-striped" id="main_tab">
+    <tr>
+        <th style="width: 15%;">Name</th>
+        <th>Description</th>
+        <th>Organic?</th>
+        <th>&nbsp;</th>
+    </tr>
+@foreach (var item in Model) {
+    <tr id="crop_@item.Id">
+        <td>@item.Name</td>
+        <td>@item.Description</td>
+        <td>
+            @if (@item.Organic) {
+                @:Yes
+            }
+            else {
+                @:No
+            }
+        </td>
+        <td class="actions-column"><a class="btn btn-success" href="#e_@item.Id"><i class="icon-pencil"></i> Edit</a> <a class="btn btn-warning" href="#d_@item.Id"><i class="icon-remove"></i> Delete</a></td>
+    </tr>
+}
+</table>
+<div id="xhr_token">@Html.AntiForgeryToken()</div>
+
+<script type="text/javascript">
+    // Basic functions for modifying and grabbing values in the displayed table
+    function CropRow(id) {
+        this.row = document.getElementById('crop_' + id);
+        this.row_items = this.row.getElementsByTagName('td');
+    }
+
+    // Returns the requested value (either name, desc(ription), or organic)
+    CropRow.prototype.get = function (item) {
+        switch (item) {
+            case 'name':
+                return this.row_items[0].innerHTML;
+                break;
+            case 'desc':
+                return this.row_items[1].innerHTML;
+                break;
+            case 'organic':
+                return this.row_items[2].innerHTML.trim();
+                break;
+        }
+    }
+
+    // Sets the requested value (either name, desc(ription), or organic)
+    CropRow.prototype.set = function (item, value) {
+        switch (item) {
+            case 'name':
+                this.row_items[0].innerHTML = value;
+                break;
+            case 'desc':
+                this.row_items[1].innerHTML = value;
+                break;
+            case 'organic':
+                this.row_items[2].innerHTML = value;
+                break;
+        }
+    }
+
+    // Clears all form values after successful addition to database and displayed table
+    function clear_form(frm, action) {
+        frm.name.value = "";
+        frm.desc.value = "";
+        frm.organic.checked = "";
+
+        if (action == 'edit_crop') {
+            frm.cropid.value = "-1";
+            $('#edit_crop h3').first().text('Editing nothing');
+        }
+    }
+
+    // Modifies table appropriately (either editing or adding stuff)
+    function modify_table(frm, id, action) {
+        // Find out whether or not "Organic" was checked.
+        var organic = frm.organic.checked ? 'Yes' : 'No';
+
+        if (action == 'add_crop') {
+            add_to_table(id, frm.name.value, frm.desc.value, organic);
+        }
+        else if (action == 'edit_crop') {
+            edit_table(id, frm.name.value, frm.desc.value, organic);
+        }
+    }
+
+    function edit_table(id, name, desc, organic) {
+        var row = new CropRow(id);
+
+        row.set('name', name);
+        row.set('desc', desc);
+        row.set('organic', organic);
+    }
+
+    // Adds stuff from the form to the table.
+    function add_to_table(id, name, desc, organic) {
+        $('#main_tab').append('<tr id="crop_' + id + '">' +
+            '<td>' + name + '</td>' +
+            '<td>' + desc + '</td>' +
+            '<td>' + organic + '</td>' +
+            '<td class="actions-column"><a class="btn btn-success" href="#e_' + id + '"><i class="icon-pencil"></i> Edit</a> <a class="btn btn-warning" href="#d_' + id + '"><i class="icon-remove"></i> Delete</a></td>' +
+            '</tr>');
+    }
+
+    function init_buttons() {
+        // Add actions for each Edit and Delete button.
+        var token = document.getElementById('xhr_token').getElementsByTagName('input').item(0).value;
+
+        var button_wraps = document.getElementsByClassName('actions-column');
+        for (var i = 0; i < button_wraps.length; i++) {
+            var buttons = button_wraps[i].getElementsByTagName('a');
+            for (var c = 0; c < buttons.length; c++) {
+                buttons[c].addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    var id = this.href.substr(this.href.indexOf('_') + 1);
+
+                    // Populate form with data.
+                    if (this.href.indexOf('e') != -1) {
+                        var row = new CropRow(id);
+                        var frm = document.getElementById('edit_crop_frm');
+
+                        frm.name.value = row.get('name');
+                        frm.desc.value = row.get('desc');
+                        frm.organic.checked = row.get('organic') == 'Yes' ? "checked" : "";
+                        frm.cropid.value = id;
+
+                        $('#edit_crop h3').first().text('Editing ' + frm.name.value);
+
+                        $('#edit_crop').modal();
+                    }
+
+                    // Should have confirmation dialog for this.
+                    else if (this.href.indexOf('d') != -1) {
+                        (function (self) {
+                            $.post('@(ViewBag.url)crops/delete/' + id, '__RequestVerificationToken=' + token, function () {
+                                var row = self.parentNode.parentNode;
+                                row.parentNode.removeChild(row);
+                            });
+                        }(this));
+                        }
+                });
+            }
+        }
+    }
+    
+    function init_modalbuttons() {
+        var modals = ['add_crop', 'edit_crop'];
+        var main_table = document.getElementById('main_tab');
+
+        // Add actions for clicking the Add/Edit button in the modals.
+        for (var i in modals) {
+            (function (i) {
+                var add_btn = document.getElementById(modals[i] + '_btn');
+
+                add_btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    var msg = document.getElementById(modals[i] + '_msg');
+                    var frm = document.getElementById(modals[i] + '_frm');
+
+                    var url = modals[i] == 'add_crop' ? '@(ViewBag.url)crops/create' : '@(ViewBag.url)crops/edit/' + frm.cropid.value;
+
+                    $.post(url, $('#' + modals[i] + '_frm').serialize(),
+                        function (data, status) {
+                                msg.innerHTML = data.alert;
+
+                                if (data.id != -1) { modify_table(frm, data.id, modals[i]) };
+                                clear_form(frm, modals[i]);
+
+                                setTimeout(function () {
+                                    msg.innerHTML = "";
+                                }, 3000);
+                            }
+                        );
+                });
+            }(i));
+        }
+    }
+
+    function init() {
+        init_modalbuttons();
+        init_buttons();
+    }
+
+    init();
+</script>
