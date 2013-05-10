@@ -7,21 +7,19 @@ using UCDArch.Core.DomainModel;
 
 namespace StudentFarm.Models
 {
-    public class CropPrice : DomainObjectWithTypedId<int>
+    public class CropUnit : DomainObjectWithTypedId<int>
     {
         public virtual Crop Crop { get; set; }
         public virtual Unit Unit { get; set; }
-        public virtual double Price { get; set; }
-        public virtual DateTime PriceDate { get; set; }
 
-        public CropPrice()
+        public CropUnit()
         {
         }
     }
 
-    public class CropPriceMap : ClassMap<CropPrice>
+    public class CropUnitMap : ClassMap<CropUnit>
     {
-        public CropPriceMap()
+        public CropUnitMap()
         {
             Id(x => x.Id).GeneratedBy.Identity();
             References(x => x.Crop)
@@ -32,8 +30,6 @@ namespace StudentFarm.Models
                 .Not.Nullable()
                 .Cascade.SaveUpdate()
                 .Column("UnitId");
-            Map(x => x.Price);
-            Map(x => x.PriceDate);
         }
     }
 }

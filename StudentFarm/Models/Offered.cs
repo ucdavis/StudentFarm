@@ -9,7 +9,7 @@ namespace StudentFarm.Models
 {
     public class Offered : DomainObjectWithTypedId<int>
     {
-        public virtual CropPrice CropPrice { get; set; }
+        public virtual Price CropPrice { get; set; }
         public virtual Availability Availability { get; set; }
         public virtual double Quantity { get; set; }
 

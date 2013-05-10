@@ -30,6 +30,20 @@ namespace StudentFarm.Controllers
         }
 
         //
+        // Get: /Crops/Search
+        public ActionResult Search(String search)
+        {
+            IQueryable<Crop> cropq = this.cropRepo.Queryable;
+
+            var crops = from crop in cropq
+                        where crop.Name.ToLower().Contains(search.ToLower())
+                        orderby crop.Name ascending
+                        select crop;
+
+            return Content(base.Search<Crop>(search, "Name", crops));
+        }
+
+        //
         // GET: /Crops/Details/5
 
         public ActionResult Details(int id)

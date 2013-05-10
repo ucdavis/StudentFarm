@@ -12,10 +12,10 @@ namespace StudentFarm.Controllers
     public class HomeController : ApplicationController // Controller
     {
         private readonly IRepository<Crop> cropRepo;
-        private readonly IRepository<CropPrice> priceRepo;
+        private readonly IRepository<Price> priceRepo;
         private readonly IRepository<Unit> unitRepo;
 
-        public HomeController(IRepository<Crop> cropRepo, IRepository<CropPrice> priceRepo, IRepository<Unit> unitRepo)
+        public HomeController(IRepository<Crop> cropRepo, IRepository<Price> priceRepo, IRepository<Unit> unitRepo)
         {
             this.cropRepo = cropRepo;
             this.priceRepo = priceRepo;
@@ -74,6 +74,26 @@ namespace StudentFarm.Controllers
 
             /* Read test */
             return View(crops);
+        }
+
+        [HttpPost]
+        public ActionResult Index(String[] product, ICollection<String> packsize, ICollection<String> unitprice, ICollection<int> cpid)
+        {
+            String result = "";
+
+            foreach (String t in product)
+            {
+                result += t + "<br />";
+            }
+
+            result += "<h3>Packsizes</h3>";
+
+            foreach (String t in packsize)
+            {
+                result += t + "<br />";
+            }
+            
+            return Content(result);
         }
 
         public ActionResult CropDescriptions(int id)

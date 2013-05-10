@@ -6,16 +6,110 @@
 <h2>Add New Availability</h2>
 }
 
-<table class="table">
-    <tr>
-        <th>Product</th>
-        <th>Pack Size</th>
-        <th>Unit Price</th>
-    </tr>
-    <tr>
-        <td>Kohlrabi</td>
-        <td>Pound</td>
-        <td>$5 per pound</td>
-    </tr>
-</table>
-<button class="btn btn-primary" type="button"><i class="icon-plus"></i> Add Stuff</button>
+<form autocomplete="off">
+    @Html.AntiForgeryToken()
+    <table class="table" id="main_tab">
+        <tr>
+            <th>Product</th>
+            <th>Pack Size</th>
+            <th>Unit Price</th>
+            <th class="highlight">Amount</th>
+        </tr>
+        <tr>
+            <td><input type="text" name="product" class="typeahead" /></td>
+            <td><input type="text" name="packsize" class="typeahead" /></td>
+            <td><input type="text" name="unitprice" /></td>
+            <td class="highlight"><input type="text" name="amount" /><input type="hidden" name="cpid" value="1" /></td>
+        </tr>
+    </table>
+</form>
+<button id="add" class="btn" type="button"><i class="icon-plus"></i> Add Stuff</button>
+<button id="save" class="btn btn-primary" type="button"><i class="icon-ok"></i> Save</button>
+
+@section AdditionalScripts {
+<script type="text/javascript">
+    var initTypeahead = function (i, el) {
+        var controller = 'units';
+        if (el.name == 'product') {
+            controller = 'crops';
+        }
+
+        // Load data into data-source for both text inputs with via
+        // function with xhr. Pass result to process() as array.
+        $(el).typeahead({
+            source: function (query, process) {
+                $.get('@(ViewBag.url)' + controller + '/search', "search=" + encodeURIComponent(query),
+                        function (data) {
+                            if (data.length > 0) {
+                                process(data.split('","'));
+                            }
+                            else {
+                                process([]);
+                            }
+                        });
+            }
+        });
+    };
+
+    $('.typeahead').each(initTypeahead);
+
+    // Creates a new column with a textbox in it, with typeahead attached if necessary.
+    function new_col(type, name, classy, colclass) {
+        var col = document.createElement('td');
+        col.className = colclass;
+
+        var inp = document.createElement('input');
+        inp.type = type;
+        inp.name = name;
+        inp.className = classy;
+
+        col.appendChild(inp);
+
+        if (classy.indexOf('typeahead') != -1) {
+            initTypeahead(0, inp);
+        }
+
+        return col;
+    }
+
+    function new_amt_col(id) {
+        var col = new_col("text", "amount", "", "highlight");
+        
+        var hid = document.createElement('input');
+        hid.type = "hidden";
+        hid.name = "cpid";
+        hid.value = id;
+
+        col.appendChild(hid);
+
+        return col;
+    }
+
+    // Set up actions for "Add Stuff" button.
+    var add_btn = document.getElementById('add');
+    add_btn.addEventListener('click', function (e) {
+        var tab = document.getElementById('main_tab');
+        var row = document.createElement('tr');
+        var prod = new_col("text", "product", "typeahead");
+        var unit = new_col("text", "packsize", "typeahead");
+        var price = new_col("text", "unitprice", "");
+
+        // Negative ID means new. Though, I guess we might have to check all the
+        // CropPrice records against what's entered to make sure nothing's changed.
+        var amt = new_amt_col(-1);
+
+        row.appendChild(prod);
+        row.appendChild(unit);
+        row.appendChild(price);
+        row.appendChild(amt);
+
+        tab.appendChild(row);
+    });
+
+    // Set up actions for "Save" button
+    var save_btn = document.getElementById('save');
+    save_btn.addEventListener('click', function (e) {
+        $.post('@ViewBag.url', $('form').first().serialize());
+    });
+</script>
+}

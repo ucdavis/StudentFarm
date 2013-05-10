@@ -173,14 +173,16 @@
     <Compile Include="Controllers\CropsController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\SampleController.cs" />
+    <Compile Include="Controllers\UnitsController.cs" />
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
     <Compile Include="Models\Availability.cs" />
     <Compile Include="Models\Buyer.cs" />
     <Compile Include="Models\BuyerAvailability.cs" />
+    <Compile Include="Models\CropUnit.cs" />
     <Compile Include="Models\Crop.cs" />
-    <Compile Include="Models\CropPrice.cs" />
+    <Compile Include="Models\Price.cs" />
     <Compile Include="Models\Invoice.cs" />
     <Compile Include="Models\Offered.cs" />
     <Compile Include="Models\Order.cs" />

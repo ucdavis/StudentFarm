@@ -119,6 +119,11 @@ td.actions-column {
     width: 15%;
 }
 
+td.highlight, th.highlight {
+    text-align: right;
+    background-color: #e6e6e6;
+}
+
 /*
     Menu Bars
 -------------------------------------------------------------*/

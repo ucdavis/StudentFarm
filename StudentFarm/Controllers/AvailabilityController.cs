@@ -12,13 +12,13 @@ namespace StudentFarm.Controllers
     {
         private readonly IRepository<Availability> availRepo;
         private readonly IRepository<Crop> cropRepo;
-        private readonly IRepository<CropPrice> priceRepo;
+        private readonly IRepository<Price> priceRepo;
         private readonly IRepository<Offered> offerRepo;
         private readonly IRepository<Unit> unitRepo;
         private readonly IRepository<BuyerAvailability> buyerAvailRepo;
 
         public AvailabilityController(IRepository<Availability> availRepo, IRepository<Crop> cropRepo,
-            IRepository<CropPrice> priceRepo, IRepository<Offered> offerRepo, IRepository<Unit> unitRepo,
+            IRepository<Price> priceRepo, IRepository<Offered> offerRepo, IRepository<Unit> unitRepo,
             IRepository<BuyerAvailability> buyerAvailRepo)
         {
             this.availRepo = availRepo;
