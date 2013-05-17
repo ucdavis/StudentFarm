@@ -6,20 +6,42 @@
 <h2>Add New Availability</h2>
 }
 
+<!-- On the edit availability and/or view past availabilities page, should have a "save as new" button or something
+    to copy old availabilities to new ones, which I suspect will be an extremely frequent activity -->
 <form autocomplete="off">
     @Html.AntiForgeryToken()
+    <div class="accordion" id="opts_accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a class="accordion-toggle" data-toggle="collapse" data-parent="#opts_accordion" href="#opts_form"><i class="icon-cog"></i> Options</a>
+            </div>
+            <div id="opts_form" class="accordion-body collapse">
+                <div class="accordion-inner">
+                    <h4>Availability is for date(s) between:</h4>
+                    <input type="text" id="start" name="start_d" /> and <input type="text" id="end" name="end_d" />
+                    <h4>Offer to:</h4>
+                    @foreach (var buyer in ViewBag.buyers) {
+                        <label class="checkbox">
+                            <input type="checkbox" name="buyers" value="@buyer.Id"> @buyer.Name
+                        </label>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
     <table class="table" id="main_tab">
         <tr>
             <th>Product</th>
             <th>Pack Size</th>
-            <th>Unit Price</th>
-            <th class="highlight">Amount</th>
+            <th>Unit Price ($)</th>
+            <th class="highlight">Available # of Units</th>
         </tr>
         <tr>
-            <td><input type="text" name="product" class="typeahead" /></td>
-            <td><input type="text" name="packsize" class="typeahead" /></td>
+            <td><input type="text" name="product" class="typeahead" /><input type="hidden" name="product_id" /></td>
+            <td><input type="text" name="packsize" class="typeahead" /><input type="hidden" name="packsize_id" /></td>
             <td><input type="text" name="unitprice" /></td>
-            <td class="highlight"><input type="text" name="amount" /><input type="hidden" name="cpid" value="1" /></td>
+            <td class="highlight"><input type="text" name="amount" /></td>
         </tr>
     </table>
 </form>
@@ -30,6 +52,8 @@
 <script type="text/javascript">
     var initTypeahead = function (i, el) {
         var controller = 'units';
+        var ids = {};
+
         if (el.name == 'product') {
             controller = 'crops';
         }
@@ -41,12 +65,27 @@
                 $.get('@(ViewBag.url)' + controller + '/search', "search=" + encodeURIComponent(query),
                         function (data) {
                             if (data.length > 0) {
-                                process(data.split('","'));
+                                var dat_arr = data.split('","');
+                                var items = [];
+
+                                for (var i = 0; i < dat_arr.length; i += 2) {
+                                    ids[dat_arr[i + 1]] = dat_arr[i];
+                                    items.push(dat_arr[i + 1]);
+                                }
+
+                                process(items);
                             }
                             else {
                                 process([]);
                             }
                         });
+            },
+
+            // Save the ID in a hidden field.
+            updater: function (item) {
+                el.parentNode.getElementsByTagName('input').item(1).value = ids[item];
+                console.log(el.parentNode.getElementsByTagName('input').item(1));
+                return item;
             }
         });
     };
@@ -56,7 +95,9 @@
     // Creates a new column with a textbox in it, with typeahead attached if necessary.
     function new_col(type, name, classy, colclass) {
         var col = document.createElement('td');
-        col.className = colclass;
+        if (colclass) {
+            col.className = colclass;
+        }
 
         var inp = document.createElement('input');
         inp.type = type;
@@ -72,13 +113,12 @@
         return col;
     }
 
-    function new_amt_col(id) {
-        var col = new_col("text", "amount", "", "highlight");
+    function new_col_with_id(type, name, classy, id_fld_name) {
+        var col = new_col(type, name, classy);
         
         var hid = document.createElement('input');
         hid.type = "hidden";
-        hid.name = "cpid";
-        hid.value = id;
+        hid.name = id_fld_name;
 
         col.appendChild(hid);
 
@@ -90,13 +130,10 @@
     add_btn.addEventListener('click', function (e) {
         var tab = document.getElementById('main_tab');
         var row = document.createElement('tr');
-        var prod = new_col("text", "product", "typeahead");
-        var unit = new_col("text", "packsize", "typeahead");
+        var prod = new_col_with_id("text", "product", "typeahead", "product_id");
+        var unit = new_col_with_id("text", "packsize", "typeahead", "packsize_id");
         var price = new_col("text", "unitprice", "");
-
-        // Negative ID means new. Though, I guess we might have to check all the
-        // CropPrice records against what's entered to make sure nothing's changed.
-        var amt = new_amt_col(-1);
+        var amt = new_col("text", "amount", "", "highlight");
 
         row.appendChild(prod);
         row.appendChild(unit);
@@ -109,7 +146,11 @@
     // Set up actions for "Save" button
     var save_btn = document.getElementById('save');
     save_btn.addEventListener('click', function (e) {
-        $.post('@ViewBag.url', $('form').first().serialize());
+        $.post('@(ViewBag.url)availability/create', $('form').first().serialize());
     });
+
+    // Set up calendars
+    $('#start').datepicker();
+    $('#end').datepicker();
 </script>
 }

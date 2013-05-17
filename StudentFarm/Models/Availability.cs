@@ -9,8 +9,8 @@ namespace StudentFarm.Models
 {
     public class Availability : DomainObjectWithTypedId<int>
     {
-        public virtual DateTime DateStart { get; set; }
-        public virtual DateTime DateEnd { get; set; }
+        public virtual DateTime? DateStart { get; set; }
+        public virtual DateTime? DateEnd { get; set; }
         public virtual string Comments { get; set; }
 
         public virtual IList<BuyerAvailability> Buyers { get; set; }
@@ -28,9 +28,9 @@ namespace StudentFarm.Models
         public AvailabilityMap()
         {
             Id(x => x.Id).GeneratedBy.Identity();
-            Map(x => x.DateStart);
-            Map(x => x.DateEnd);
-            Map(x => x.Comments);
+            Map(x => x.DateStart).Nullable();
+            Map(x => x.DateEnd).Nullable();
+            Map(x => x.Comments).Nullable();
             HasMany(x => x.Buyers)
                 .Cascade.AllDeleteOrphan()
                 .Inverse()

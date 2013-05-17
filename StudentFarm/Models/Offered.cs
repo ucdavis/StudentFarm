@@ -22,6 +22,7 @@ namespace StudentFarm.Models
     {
         public OfferedMap()
         {
+            Table("Offered");
             Id(x => x.Id).GeneratedBy.Identity();
             References(x => x.CropPrice)
                 .Not.Nullable()

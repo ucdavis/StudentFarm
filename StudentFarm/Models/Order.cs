@@ -35,7 +35,7 @@ namespace StudentFarm.Models
                 .Column("AvailabilityId");
             Map(x => x.OrderTime);
             Map(x => x.DeliveryTime);
-            Map(x => x.Comments);
+            Map(x => x.Comments).Nullable();
         }
     }
 }

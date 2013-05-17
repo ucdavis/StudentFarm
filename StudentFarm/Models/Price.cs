@@ -11,7 +11,7 @@ namespace StudentFarm.Models
     {
         public virtual CropUnit CropUnit { get; set; }
         public virtual double UnitPrice { get; set; }
-        public virtual DateTime PriceDate { get; set; }
+        public virtual DateTime? PriceDate { get; set; }
 
         public Price()
         {
@@ -28,7 +28,7 @@ namespace StudentFarm.Models
                 .Cascade.SaveUpdate()
                 .Column("CropUnitId");
             Map(x => x.UnitPrice);
-            Map(x => x.PriceDate);
+            Map(x => x.PriceDate).Nullable();
         }
     }
 }

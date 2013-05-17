@@ -102,6 +102,21 @@ form .input-validation-error {border-color: #B94A48;}
 .button-icon { margin-right: 7px;}
 
 /*
+    Styles for options expandable thingy
+------------------------------------------------------------*/
+.options {
+    font-size: 125%;
+    text-align: right;
+    display: block;
+    border-bottom: 1px solid #aaa;
+    margin-bottom: 1em;
+}
+
+a.options:hover {
+    text-decoration: none;
+}
+
+/*
     Styles for tables
 ------------------------------------------------------------*/
 table.one-btn-first-row tr td:first-child { width: 50px;  }

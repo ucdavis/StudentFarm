@@ -22,6 +22,7 @@ namespace StudentFarm.Models
     {
         public OrderedMap()
         {
+            Table("Ordered");
             Id(x => x.Id).GeneratedBy.Identity();
             References(x => x.Order)
                 .Not.Nullable()

@@ -24,6 +24,7 @@ namespace StudentFarm.Controllers
                 var val = property.GetValue(crop, null);
 
                 // Escape double quotes with htmlentity &#34;
+                results += "\"" + crop.GetType().GetProperty("Id").GetValue(crop) + "\",";
                 results += "\"" + val.ToString().Replace("\"", "&#34;") + "\",";
             }
 

@@ -15,18 +15,22 @@ namespace StudentFarm.Controllers
         private readonly IRepository<Price> priceRepo;
         private readonly IRepository<Offered> offerRepo;
         private readonly IRepository<Unit> unitRepo;
+        private readonly IRepository<CropUnit> cuRepo;
         private readonly IRepository<BuyerAvailability> buyerAvailRepo;
+        private readonly IRepository<Buyer> buyerRepo;
 
         public AvailabilityController(IRepository<Availability> availRepo, IRepository<Crop> cropRepo,
             IRepository<Price> priceRepo, IRepository<Offered> offerRepo, IRepository<Unit> unitRepo,
-            IRepository<BuyerAvailability> buyerAvailRepo)
+            IRepository<CropUnit> cuRepo, IRepository<BuyerAvailability> buyerAvailRepo, IRepository<Buyer> buyerRepo)
         {
             this.availRepo = availRepo;
             this.cropRepo = cropRepo;
             this.priceRepo = priceRepo;
             this.offerRepo = offerRepo;
             this.unitRepo = unitRepo;
+            this.cuRepo = cuRepo;
             this.buyerAvailRepo = buyerAvailRepo;
+            this.buyerRepo = buyerRepo;
         }
 
         //
@@ -35,6 +39,7 @@ namespace StudentFarm.Controllers
         public ActionResult Index()
         {
             ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
+            ViewBag.buyers = this.buyerRepo.Queryable;
 
             return View();
         }
@@ -57,19 +62,97 @@ namespace StudentFarm.Controllers
 
         //
         // POST: /Availability/Create
+        // Creates a new availability.
 
         [HttpPost]
-        public ActionResult Create(FormCollection collection)
+        public ActionResult Create(String[] product, int[] product_id, String[] packsize, int[] packsize_id, double[] unitprice, double[] amount)
         {
             try
             {
-                // TODO: Add insert logic here
+                // Create new Availability
+                Availability newAvail = new Availability();
+                this.availRepo.EnsurePersistent(newAvail);
 
+                // Check for existing CropUnits and associated prices. Create Offered records for everything, creating
+                // new CropUnit records and Price records if necessary.
+                for (int i = 0; i < product.Length; i++)
+                {
+                    Crop crop = this.cropRepo.GetNullableById(product_id[i]);
+                    Unit unit = this.unitRepo.GetNullableById(packsize_id[i]);
+
+                    if (crop == null || crop.Name.ToLower() != product[i].ToLower())
+                    {
+                        crop = new Crop();
+                        crop.Name = product[i];
+                        crop.Organic = true; // Assume everything's organic unless specified otherwise 
+                                             // (and one can specify otherwise via the crop controller)
+                        this.cropRepo.EnsurePersistent(crop);
+                    }
+
+                    if (unit == null || unit.Name.ToLower() != packsize[i].ToLower())
+                    {
+                        unit = new Unit();
+                        unit.Name = packsize[i];
+                        this.unitRepo.EnsurePersistent(unit);
+                    }
+
+                    // Look for an associated CropUnit record
+                    IQueryable<CropUnit> cropunits = this.cuRepo.Queryable;
+                    var cuq = from cropunit in cropunits
+                             where cropunit.Crop.Id == crop.Id &&
+                                   cropunit.Unit.Id == unit.Id
+                             select cropunit;
+                    
+                    // Create one if it doesn't exist.
+                    CropUnit cu;
+                    if (cuq.Count() > 0)
+                    {
+                        cu = cuq.First();
+                    }
+                    else
+                    {
+                        cu = new CropUnit();
+                        cu.Crop = crop;
+                        cu.Unit = unit;
+                        this.cuRepo.EnsurePersistent(cu);
+                    }
+
+                    // Look for a Price record
+                    IQueryable<Price> prices = this.priceRepo.Queryable;
+                    var pq = from price in prices
+                             where price.CropUnit.Id == cu.Id &&
+                                   price.UnitPrice == unitprice[i]
+                             select price;
+
+                    // Create one if it doesn't exist.
+                    Price p;
+                    if (pq.Count() > 0)
+                    {
+                        p = pq.First();
+                    }
+                    else
+                    {
+                        p = new Price();
+                        p.CropUnit = cu;
+                        p.UnitPrice = unitprice[i];
+                        this.priceRepo.EnsurePersistent(p);
+                    }
+
+                    // Offer
+                    Offered offer = new Offered();
+                    offer.CropPrice = p;
+                    offer.Quantity = amount[i];
+                    offer.Availability = newAvail;
+                    this.offerRepo.EnsurePersistent(offer);
+                }
+
+                // Return Offered Ids, so we can update the displayed table with them and
+                // know what to update if the user clicks save again.
                 return RedirectToAction("Index");
             }
             catch
             {
-                return View();
+                return Content("");
             }
         }
 

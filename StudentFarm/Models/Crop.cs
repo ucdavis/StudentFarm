@@ -12,7 +12,7 @@ namespace StudentFarm.Models
         public virtual string Name { get; set; }
         public virtual string Description { get; set; }
         public virtual bool Organic { get; set; }
-        public virtual DateTime AddedDate { get; set; }
+        public virtual DateTime? AddedDate { get; set; }
 
         public Crop()
         {
@@ -25,9 +25,9 @@ namespace StudentFarm.Models
         {
             Id(x => x.Id).GeneratedBy.Identity();
             Map(x => x.Name);
-            Map(x => x.Description);
+            Map(x => x.Description).Nullable();
             Map(x => x.Organic);
-            Map(x => x.AddedDate);
+            Map(x => x.AddedDate).Nullable();
         }
     }
 }
