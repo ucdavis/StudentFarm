@@ -16,14 +16,55 @@
                 <a class="accordion-toggle" data-toggle="collapse" data-parent="#opts_accordion" href="#opts_form"><i class="icon-cog"></i> Options</a>
             </div>
             <div id="opts_form" class="accordion-body collapse">
+                @{
+                    String today = DateTime.Today.ToShortDateString();
+                    String twodays = DateTime.Today.AddDays(2).ToShortDateString();
+                }
                 <div class="accordion-inner">
-                    <h4>Availability is for date(s) between:</h4>
-                    <input type="text" id="start" name="start_d" /> and <input type="text" id="end" name="end_d" />
+                    <h4>Availability is for delivery date(s) between:</h4>
+                    <input type="text" class="date" name="start_d" value="@today" /> and <input type="text" class="date" name="end_d" value="@twodays" />
                     <h4>Offer to:</h4>
-                    @foreach (var buyer in ViewBag.buyers) {
+                    @foreach (StudentFarm.Models.Buyer buyer in ViewBag.buyers) {
                         <label class="checkbox">
-                            <input type="checkbox" name="buyers" value="@buyer.Id"> @buyer.Name
+                            <input class="buyer" type="checkbox" name="buyers" value="@buyer.Id" /> @buyer.Name
                         </label>
+                        <div id="buyer_@buyer.Id" style="display: none;">
+                            @* Unchecked checkbox items don't get stuck in the POSTed data and don't make it
+                               into the array passed to the controller's method. The array indices for the buyers
+                               array can therefore be different from the indices for all the order time data. However,
+                               we still need a way to associate the ordering times with the buyers. The following
+                               hidden buyer_id field facilitates this association. *@
+                            <input type="hidden" name="buyer_id" value="@buyer.Id" />
+                            <p>
+                                <u>Order Times:</u><br />
+                                Start: <select name="ostart_t">
+                                    @for (int i = 0; i < 1440; i += 15) {
+                                        if (i == 540) {
+                                            @ViewBag.printTime(i, true);
+                                        }
+                                        else {
+                                            @ViewBag.printTime(i)
+                                        }
+                                    }
+                                </select>
+                                on
+                                <input type="text" class="date" name="ostart_d" value="@today" /><br />
+                        
+                                End: <select name="end_t">
+                                    @for (int i = 0; i < 1440; i += 15)
+                                    {
+                                        if (i == 600) {
+                                            @ViewBag.printTime(i, true);
+                                        }
+                                        else {
+                                            @ViewBag.printTime(i)
+                                        }
+                                    }
+                                </select>
+                                on
+                                <input type="text" class="date" name="oend_d" value="@twodays" /><br />
+                            </p>
+                       </div>
                     }
                 </div>
             </div>
@@ -113,6 +154,7 @@
         return col;
     }
 
+    // Makes new column with hidden field for id
     function new_col_with_id(type, name, classy, id_fld_name) {
         var col = new_col(type, name, classy);
         
@@ -150,7 +192,23 @@
     });
 
     // Set up calendars
-    $('#start').datepicker();
-    $('#end').datepicker();
+    $('.date').each(function(i, el) {
+        $(el).datepicker();
+    });
+
+    // Set up buyer checkbox toggles
+    $('.buyer').each(function (i, el) {
+        var buyer_id = el.value;
+        var buyer_otimes = document.getElementById('buyer_' + buyer_id);
+
+        el.addEventListener('change', function (e) {
+            if (this.checked) {
+                buyer_otimes.style.display = "block";
+            }
+            else {
+                buyer_otimes.style.display = "none";
+            }
+        });
+    });
 </script>
 }

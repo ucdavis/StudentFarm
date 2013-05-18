@@ -104,17 +104,18 @@ form .input-validation-error {border-color: #B94A48;}
 /*
     Styles for options expandable thingy
 ------------------------------------------------------------*/
-.options {
-    font-size: 125%;
-    text-align: right;
-    display: block;
-    border-bottom: 1px solid #aaa;
-    margin-bottom: 1em;
+#opts_form input, #opts_form select {
+    width: 7em;
 }
 
-a.options:hover {
-    text-decoration: none;
+#opts_form label input {
+    width: auto;
 }
+
+#opts_form p {
+    margin-left: 2em;
+}
+
 
 /*
     Styles for tables

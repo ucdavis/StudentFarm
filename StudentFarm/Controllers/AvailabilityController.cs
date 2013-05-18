@@ -40,6 +40,7 @@ namespace StudentFarm.Controllers
         {
             ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
             ViewBag.buyers = this.buyerRepo.Queryable;
+            ViewBag.printTime = new Del(printTime);
 
             return View();
         }
@@ -206,6 +207,59 @@ namespace StudentFarm.Controllers
             {
                 return View();
             }
+        }
+
+        public delegate MvcHtmlString Del(int i, bool selected = false);
+        public static MvcHtmlString printTime(int i, bool selected = false)
+        {
+            String option = "";
+
+            String dispTime = "";
+            String sendTime = "";
+            int iMinutes = i % 60;
+            String sMinutes = iMinutes < 10 ? '0' + iMinutes.ToString() : iMinutes.ToString();
+
+            double fHour = i / 60;
+            int hour = (int)Math.Floor(fHour);
+
+            String amPm = hour < 12 ? " AM" : " PM";
+            if (hour > 12)
+            {
+                hour = hour - 12;
+            }
+            if (hour == 0)
+            {
+                hour = 12;
+            }
+
+            String sHour = hour < 10 ? "\u00a0\u00a0" + hour.ToString() : hour.ToString();
+
+            dispTime = sHour + ':' + sMinutes + amPm;
+            sendTime = hour.ToString() + ':' + sMinutes + amPm;
+
+            if (selected)
+            {
+                option = "<option selected=\"selected\" ";
+            }
+            else
+            {
+                option = "<option ";
+            }
+
+            if (dispTime.Equals("12:00 AM"))
+            {
+                option += "value='" + sendTime + "'>Midnight</option>";
+            }
+            else if (dispTime.Equals("12:00 PM"))
+            {
+                option += "value='" + sendTime + "'>Noon</option>";
+            }
+            else
+            {
+                option += " value='" + sendTime + "'>" + dispTime + "</option>";
+            }
+
+            return new MvcHtmlString(option);
         }
     }
 }
