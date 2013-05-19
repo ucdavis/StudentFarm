@@ -1,0 +1,275 @@
+﻿@{
+    ViewBag.Title = "Add New Availability";
+}
+
+@section subhead {
+    @if (ViewBag.edit == -1) {
+        <h2>Add New Availability</h2>
+    }
+    else {
+        <h2>Edit Availability</h2>
+    }
+}
+
+@* On the edit availability and/or view past availabilities page, should have a "save as new" button or something
+   to copy old availabilities to new ones, which I suspect will be an extremely frequent activity *@
+<form autocomplete="off">
+    @Html.AntiForgeryToken()
+    <div class="accordion" id="opts_accordion">
+        <div class="accordion-group">
+            <div class="accordion-heading">
+                <a class="accordion-toggle" data-toggle="collapse" data-parent="#opts_accordion" href="#opts_form"><i class="icon-cog"></i> Options</a>
+            </div>
+            <div id="opts_form" class="accordion-body collapse">
+                @{
+                    String today, twodays;
+                    if (ViewBag.edit == -1) {
+                        today = DateTime.Today.ToShortDateString();
+                        twodays = DateTime.Today.AddDays(2).ToShortDateString();
+                    }
+                    else {
+                        today = ViewBag.avail.DateStart.ToShortDateString();
+                        twodays = ViewBag.avail.DateEnd.ToShortDateString();
+                    }
+                }
+                <div class="accordion-inner">
+                    <h4>Availability is for delivery date(s) between:</h4>
+                    <input type="text" class="date" name="start_d" value="@today" /> and <input type="text" class="date" name="end_d" value="@twodays" />
+                    <h4>Offer to:</h4>
+                    @foreach (StudentFarm.Models.Buyer buyer in ViewBag.buyers) {
+                        // Html attributes. Null in MVC4 means the attribute doesn't get displayed, so
+                        // we can set variables for optional attributes and make them null if we don't
+                        // need 'em.
+                        String display = "display: none;", check = null;
+                        
+                        // Order dates. Defaults to today and two days from today, but if this buyer's
+                        // associated with this availability, we can modify it through these variables.
+                        String startday = today, endday = twodays;
+                        
+                        // Easier access to the buyeravailability record.
+                        StudentFarm.Models.BuyerAvailability buya = null;
+                        <label class="checkbox">
+                            @if (ViewBag.edit == -1)
+                            {
+                                <input class="buyer" type="checkbox" name="buyers" value="@buyer.Id" /> @buyer.Name
+                            }
+                            else {
+                                buya = ViewBag.avail.HasBuyer(buyer.Id);
+                                if (buya != null)
+                                {
+                                    check = "checked";
+                                    display = null;
+                                    startday = buya.StartTime.ToShortDateString();
+                                    endday = buya.EndTime.ToShortDateString();
+                                }
+                                <input class="buyer" type="checkbox" name="buyers" value="@buyer.Id" checked="@check" /> @buyer.Name
+                            }
+                        </label>
+                        <div id="buyer_@buyer.Id" style="@display">
+                            @* Unchecked checkbox items don't get stuck in the POSTed data and don't make it
+                               into the array passed to the controller's method. The array indices for the buyers
+                               array can therefore be different from the indices for all the order time data. However,
+                               we still need a way to associate the ordering times with the buyers. The following
+                               hidden buyer_id field facilitates this association. *@
+                            <input type="hidden" name="buyer_id" value="@buyer.Id" />
+                            <p>
+                                <u>Order Times:</u><br />
+                                Start: <select name="ostart_t">
+                                    @for (int i = 0; i < 1440; i += 15) {
+                                        if (buya != null && buya.ToMinutes(true) == i) {
+                                            @ViewBag.printTime(i, true);
+                                        }
+                                        else if (buya == null && i == 540) {
+                                            @ViewBag.printTime(i, true);
+                                        }
+                                        else {
+                                            @ViewBag.printTime(i)
+                                        }
+                                    }
+                                </select>
+                                on
+                                <input type="text" class="date" name="ostart_d" value="@startday" /><br />
+                        
+                                End: <select name="oend_t">
+                                    @for (int i = 0; i < 1440; i += 15)
+                                    {
+                                        if (buya != null && buya.ToMinutes(false) == i) {
+                                            @ViewBag.printTime(i, true);
+                                        }
+                                        else if (buya == null && i == 600) {
+                                            @ViewBag.printTime(i, true);
+                                        }
+                                        else {
+                                            @ViewBag.printTime(i)
+                                        }
+                                    }
+                                </select>
+                                on
+                                <input type="text" class="date" name="oend_d" value="@endday" /><br />
+                            </p>
+                       </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="table" id="main_tab">
+        <tr>
+            <th>Product</th>
+            <th>Pack Size</th>
+            <th>Unit Price ($)</th>
+            <th class="highlight">Available # of Units</th>
+        </tr>
+        @if (ViewBag.edit == -1) {
+            <tr>
+                <td><input type="text" name="product" class="typeahead" /><input type="hidden" name="product_id" /></td>
+                <td><input type="text" name="packsize" class="typeahead" /><input type="hidden" name="packsize_id" /></td>
+                <td><input type="text" name="unitprice" /></td>
+                <td class="highlight"><input type="text" name="amount" /></td>
+            </tr>
+        }
+        else {
+            foreach (StudentFarm.Models.Offered item in ViewBag.avail.Offered)
+            {
+                StudentFarm.Models.CropUnit cu = item.CropPrice.CropUnit;
+                <tr>
+                    <td><input type="text" name="product" class="typeahead" value="@cu.Crop.Name" /><input type="hidden" name="product_id" value="@cu.Crop.Id" /></td>
+                    <td><input type="text" name="packsize" class="typeahead" value="@cu.Unit.Name" /><input type="hidden" name="packsize_id" value="@cu.Unit.Id" /></td>
+                    <td><input type="text" name="unitprice" value="@item.CropPrice.UnitPrice" /><input type="hidden" name="cp_id" value="@item.CropPrice.Id" /></td>
+                    <td class="highlight"><input type="text" name="amount" value="@item.Quantity" /><input type="hidden" name="offered_id" value="@item.Id" /></td>
+                </tr>
+            }
+        }
+    </table>
+</form>
+<button id="add" class="btn" type="button"><i class="icon-plus"></i> Add Stuff</button>
+<button id="save" class="btn btn-primary" type="button"><i class="icon-ok"></i> Save</button>
+
+@section AdditionalScripts {
+<script type="text/javascript">
+    var initTypeahead = function (i, el) {
+        var controller = 'units';
+        var ids = {};
+
+        if (el.name == 'product') {
+            controller = 'crops';
+        }
+
+        // Load data into data-source for both text inputs with via
+        // function with xhr. Pass result to process() as array.
+        $(el).typeahead({
+            source: function (query, process) {
+                $.get('@(ViewBag.url)' + controller + '/search', "search=" + encodeURIComponent(query),
+                        function (data) {
+                            if (data.length > 0) {
+                                var dat_arr = data.split('","');
+                                var items = [];
+
+                                for (var i = 0; i < dat_arr.length; i += 2) {
+                                    ids[dat_arr[i + 1]] = dat_arr[i];
+                                    items.push(dat_arr[i + 1]);
+                                }
+
+                                process(items);
+                            }
+                            else {
+                                process([]);
+                            }
+                        });
+            },
+
+            // Save the ID in a hidden field.
+            updater: function (item) {
+                el.parentNode.getElementsByTagName('input').item(1).value = ids[item];
+                console.log(el.parentNode.getElementsByTagName('input').item(1));
+                return item;
+            }
+        });
+    };
+
+    $('.typeahead').each(initTypeahead);
+
+    // Creates a new column with a textbox in it, with typeahead attached if necessary.
+    function new_col(type, name, classy, colclass) {
+        var col = document.createElement('td');
+        if (colclass) {
+            col.className = colclass;
+        }
+
+        var inp = document.createElement('input');
+        inp.type = type;
+        inp.name = name;
+        inp.className = classy;
+
+        col.appendChild(inp);
+
+        if (classy.indexOf('typeahead') != -1) {
+            initTypeahead(0, inp);
+        }
+
+        return col;
+    }
+
+    // Makes new column with hidden field for id
+    function new_col_with_id(type, name, classy, id_fld_name) {
+        var col = new_col(type, name, classy);
+        
+        var hid = document.createElement('input');
+        hid.type = "hidden";
+        hid.name = id_fld_name;
+
+        col.appendChild(hid);
+
+        return col;
+    }
+
+    // Set up actions for "Add Stuff" button.
+    var add_btn = document.getElementById('add');
+    add_btn.addEventListener('click', function (e) {
+        var tab = document.getElementById('main_tab');
+        var row = document.createElement('tr');
+        var prod = new_col_with_id("text", "product", "typeahead", "product_id");
+        var unit = new_col_with_id("text", "packsize", "typeahead", "packsize_id");
+        var price = new_col("text", "unitprice", "");
+        var amt = new_col("text", "amount", "", "highlight");
+
+        row.appendChild(prod);
+        row.appendChild(unit);
+        row.appendChild(price);
+        row.appendChild(amt);
+
+        tab.appendChild(row);
+    });
+
+    // Set up actions for "Save" button
+    var save_btn = document.getElementById('save');
+    save_btn.addEventListener('click', function (e) {
+        $.post('@(ViewBag.url)availability/create', $('form').first().serialize(), function (data) {
+            if (data != 'Nope') {
+                window.location.href = '@(ViewBag.url)availability';
+            }
+        });
+    });
+
+    // Set up calendars
+    $('.date').each(function(i, el) {
+        $(el).datepicker();
+    });
+
+    // Set up buyer checkbox toggles
+    $('.buyer').each(function (i, el) {
+        var buyer_id = el.value;
+        var buyer_otimes = document.getElementById('buyer_' + buyer_id);
+
+        el.addEventListener('change', function (e) {
+            if (this.checked) {
+                buyer_otimes.style.display = "block";
+            }
+            else {
+                buyer_otimes.style.display = "none";
+            }
+        });
+    });
+</script>
+}

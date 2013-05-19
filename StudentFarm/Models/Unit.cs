@@ -4,6 +4,8 @@ using System.Linq;
 using System.Web;
 using FluentNHibernate.Mapping;
 using UCDArch.Core.DomainModel;
+using UCDArch.Core.PersistanceSupport;
+using UCDArch.Data.NHibernate;
 
 namespace StudentFarm.Models
 {
@@ -24,6 +26,27 @@ namespace StudentFarm.Models
             Id(x => x.Id).GeneratedBy.Identity();
             Map(x => x.Name);
             Map(x => x.Notes);
+        }
+    }
+
+    public interface IUnitRepository : IRepository<Unit>
+    {
+        Unit GetOrCreate(int id, String name);
+    }
+
+    public class UnitRepository : Repository<Unit>, IUnitRepository {
+        public Unit GetOrCreate(int id, String name)
+        {
+            Unit unit = this.GetNullableById(id);
+
+            if (unit == null || unit.Name.ToLower() != name.ToLower())
+            {
+                unit = new Unit();
+                unit.Name = name;
+                this.EnsurePersistent(unit);
+            }
+
+            return unit;
         }
     }
 }

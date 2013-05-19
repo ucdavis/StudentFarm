@@ -11,17 +11,17 @@ namespace StudentFarm.Controllers
     public class AvailabilityController : ApplicationController
     {
         private readonly IRepository<Availability> availRepo;
-        private readonly IRepository<Crop> cropRepo;
-        private readonly IRepository<Price> priceRepo;
+        private readonly ICropRepository cropRepo;
+        private readonly IPriceRepository priceRepo;
         private readonly IRepository<Offered> offerRepo;
-        private readonly IRepository<Unit> unitRepo;
-        private readonly IRepository<CropUnit> cuRepo;
+        private readonly IUnitRepository unitRepo;
+        private readonly ICropUnitRepository cuRepo;
         private readonly IRepository<BuyerAvailability> buyerAvailRepo;
         private readonly IRepository<Buyer> buyerRepo;
 
-        public AvailabilityController(IRepository<Availability> availRepo, IRepository<Crop> cropRepo,
-            IRepository<Price> priceRepo, IRepository<Offered> offerRepo, IRepository<Unit> unitRepo,
-            IRepository<CropUnit> cuRepo, IRepository<BuyerAvailability> buyerAvailRepo, IRepository<Buyer> buyerRepo)
+        public AvailabilityController(IRepository<Availability> availRepo, ICropRepository cropRepo,
+            IPriceRepository priceRepo, IRepository<Offered> offerRepo, IUnitRepository unitRepo,
+            ICropUnitRepository cuRepo, IRepository<BuyerAvailability> buyerAvailRepo, IRepository<Buyer> buyerRepo)
         {
             this.availRepo = availRepo;
             this.cropRepo = cropRepo;
@@ -39,10 +39,7 @@ namespace StudentFarm.Controllers
         public ActionResult Index()
         {
             ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
-            ViewBag.buyers = this.buyerRepo.Queryable;
-            ViewBag.printTime = new Del(printTime);
-
-            return View();
+            return View(this.availRepo.Queryable);
         }
 
         //
@@ -58,7 +55,12 @@ namespace StudentFarm.Controllers
 
         public ActionResult Create()
         {
-            return View();
+            ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
+            ViewBag.buyers = this.buyerRepo.Queryable;
+            ViewBag.printTime = new Del(printTime);
+            ViewBag.edit = -1;
+
+            return View("edit");
         }
 
         //
@@ -66,78 +68,52 @@ namespace StudentFarm.Controllers
         // Creates a new availability.
 
         [HttpPost]
-        public ActionResult Create(String[] product, int[] product_id, String[] packsize, int[] packsize_id, double[] unitprice, double[] amount)
+        public ActionResult Create(String start_d, String end_d, int[] buyers, int[] buyer_id,
+            String[] ostart_t, String[] ostart_d, String[] oend_t, String[] oend_d, String[] product,
+            int[] product_id,  String[] packsize, int[] packsize_id, double[] unitprice, double[] amount)
         {
             try
             {
                 // Create new Availability
                 Availability newAvail = new Availability();
+                newAvail.DateStart = DateTime.Parse(start_d + " 12:00:00 AM");
+                newAvail.DateEnd = DateTime.Parse(end_d + " 11:59:59 PM");
                 this.availRepo.EnsurePersistent(newAvail);
+
+                // Add Buyers. Index their positions in the form, keyed on id, first
+                // so we can use the right start/end datetimes.
+                Dictionary<int, int> dBuyer = new Dictionary<int, int>();
+                for (int i = 0; i < buyer_id.Length; i++)
+                {
+                    dBuyer.Add(buyer_id[i], i);
+                }
+
+                for (int i = 0; i < buyers.Length; i++)
+                {
+                    // Get the position of start/end time/date for this buyer in the POST input.
+                    int pos = dBuyer[buyers[i]];
+
+                    // Actually associate the buyer with this availability
+                    BuyerAvailability ba = new BuyerAvailability();
+                    ba.Availability = newAvail;
+                    ba.Buyer = this.buyerRepo.GetById(buyers[i]);
+                    ba.StartTime = DateTime.Parse(ostart_d[pos] + " " + ostart_t[pos]);
+                    ba.EndTime = DateTime.Parse(oend_d[pos] + " " + oend_t[pos]);
+                    this.buyerAvailRepo.EnsurePersistent(ba);
+                }
 
                 // Check for existing CropUnits and associated prices. Create Offered records for everything, creating
                 // new CropUnit records and Price records if necessary.
                 for (int i = 0; i < product.Length; i++)
                 {
-                    Crop crop = this.cropRepo.GetNullableById(product_id[i]);
-                    Unit unit = this.unitRepo.GetNullableById(packsize_id[i]);
-
-                    if (crop == null || crop.Name.ToLower() != product[i].ToLower())
-                    {
-                        crop = new Crop();
-                        crop.Name = product[i];
-                        crop.Organic = true; // Assume everything's organic unless specified otherwise 
-                                             // (and one can specify otherwise via the crop controller)
-                        this.cropRepo.EnsurePersistent(crop);
-                    }
-
-                    if (unit == null || unit.Name.ToLower() != packsize[i].ToLower())
-                    {
-                        unit = new Unit();
-                        unit.Name = packsize[i];
-                        this.unitRepo.EnsurePersistent(unit);
-                    }
+                    Crop crop = this.cropRepo.GetOrCreate(product_id[i], product[i]);
+                    Unit unit = this.unitRepo.GetOrCreate(packsize_id[i], packsize[i]);
 
                     // Look for an associated CropUnit record
-                    IQueryable<CropUnit> cropunits = this.cuRepo.Queryable;
-                    var cuq = from cropunit in cropunits
-                             where cropunit.Crop.Id == crop.Id &&
-                                   cropunit.Unit.Id == unit.Id
-                             select cropunit;
-                    
-                    // Create one if it doesn't exist.
-                    CropUnit cu;
-                    if (cuq.Count() > 0)
-                    {
-                        cu = cuq.First();
-                    }
-                    else
-                    {
-                        cu = new CropUnit();
-                        cu.Crop = crop;
-                        cu.Unit = unit;
-                        this.cuRepo.EnsurePersistent(cu);
-                    }
+                    CropUnit cu = this.cuRepo.GetOrCreate(crop, unit);
 
                     // Look for a Price record
-                    IQueryable<Price> prices = this.priceRepo.Queryable;
-                    var pq = from price in prices
-                             where price.CropUnit.Id == cu.Id &&
-                                   price.UnitPrice == unitprice[i]
-                             select price;
-
-                    // Create one if it doesn't exist.
-                    Price p;
-                    if (pq.Count() > 0)
-                    {
-                        p = pq.First();
-                    }
-                    else
-                    {
-                        p = new Price();
-                        p.CropUnit = cu;
-                        p.UnitPrice = unitprice[i];
-                        this.priceRepo.EnsurePersistent(p);
-                    }
+                    Price p = this.priceRepo.GetOrCreate(cu, unitprice[i]);
 
                     // Offer
                     Offered offer = new Offered();
@@ -149,11 +125,11 @@ namespace StudentFarm.Controllers
 
                 // Return Offered Ids, so we can update the displayed table with them and
                 // know what to update if the user clicks save again.
-                return RedirectToAction("Index");
+                return Content(newAvail.Id.ToString());
             }
             catch
             {
-                return Content("");
+                return Content("Nope");
             }
         }
 
@@ -162,6 +138,12 @@ namespace StudentFarm.Controllers
 
         public ActionResult Edit(int id)
         {
+            ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
+            ViewBag.buyers = this.buyerRepo.Queryable;
+            ViewBag.printTime = new Del(printTime);
+            ViewBag.edit = id;
+            ViewBag.avail = this.availRepo.GetById(id);
+
             return View();
         }
 

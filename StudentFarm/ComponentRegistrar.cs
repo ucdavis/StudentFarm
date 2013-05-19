@@ -4,6 +4,7 @@ using UCDArch.Core.DataAnnotationsValidator.CommonValidatorAdapter;
 using UCDArch.Core.PersistanceSupport;
 using UCDArch.Data.NHibernate;
 using Castle.MicroKernel.Registration;
+using StudentFarm.Models;
 
 namespace StudentFarm
 {
@@ -12,6 +13,7 @@ namespace StudentFarm
         public static void AddComponentsTo(IWindsorContainer container)
         {
             AddGenericRepositoriesTo(container);
+            AddRepositoriesTo(container);
 
             container.Register(Component.For<IValidator>().ImplementedBy<Validator>().Named("validator"));
             container.Register(Component.For<IDbContext>().ImplementedBy<DbContext>().Named("dbContext"));
@@ -22,6 +24,14 @@ namespace StudentFarm
             container.Register(Component.For(typeof(IRepositoryWithTypedId<,>)).ImplementedBy(typeof(RepositoryWithTypedId<,>)).Named("repositoryWithTypedId"));
             container.Register(Component.For(typeof(IRepository<>)).ImplementedBy(typeof(Repository<>)).Named("repositoryType"));
             container.Register(Component.For<IRepository>().ImplementedBy<Repository>().Named("repository"));
+        }
+
+        private static void AddRepositoriesTo(IWindsorContainer container)
+        {
+            container.Register(Component.For<ICropRepository>().ImplementedBy<CropRepository>());
+            container.Register(Component.For<IUnitRepository>().ImplementedBy<UnitRepository>());
+            container.Register(Component.For<ICropUnitRepository>().ImplementedBy<CropUnitRepository>());
+            container.Register(Component.For<IPriceRepository>().ImplementedBy<PriceRepository>());
         }
     }
 }

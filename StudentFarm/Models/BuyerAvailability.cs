@@ -17,6 +17,24 @@ namespace StudentFarm.Models
         public BuyerAvailability()
         {
         }
+
+        public virtual int ToMinutes(bool Start)
+        {
+            int minutes = 0;
+
+            if (Start)
+            {
+                minutes = StartTime.Hour * 60;
+                minutes += StartTime.Minute;
+                return minutes;
+            }
+            else
+            {
+                minutes = EndTime.Hour * 60;
+                minutes += EndTime.Minute;
+                return minutes;
+            }
+        }
     }
 
     public class BuyerAvailabilityMap : ClassMap<BuyerAvailability>

@@ -436,6 +436,7 @@
     <Content Include="Views\Sample\DataTable.cshtml" />
     <Content Include="Views\Home\Index.cshtml" />
     <Content Include="Views\Crops\Index.cshtml" />
+    <Content Include="Views\Availability\Edit.cshtml" />
     <Content Include="Views\Availability\Index.cshtml" />
   </ItemGroup>
   <ItemGroup>

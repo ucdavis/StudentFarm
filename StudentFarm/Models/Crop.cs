@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using UCDArch.Core.DomainModel;
+using UCDArch.Core.PersistanceSupport;
+using UCDArch.Data.NHibernate;
 
 namespace StudentFarm.Models
 {
@@ -28,6 +30,29 @@ namespace StudentFarm.Models
             Map(x => x.Description).Nullable();
             Map(x => x.Organic);
             Map(x => x.AddedDate).Nullable();
+        }
+    }
+
+    public interface ICropRepository : IRepository<Crop>
+    {
+        Crop GetOrCreate(int id, String name, bool organic = true);
+    }
+
+    public class CropRepository : Repository<Crop>, ICropRepository
+    {
+        public Crop GetOrCreate(int id, String name, bool organic = true) {
+            Crop crop = this.GetNullableById(id);
+
+            if (crop == null || crop.Name.ToLower() != name.ToLower())
+            {
+                crop = new Crop();
+                crop.Name = name;
+                crop.Organic = organic; // Assume everything's organic unless specified otherwise 
+                // (and one can specify otherwise via the crop controller)
+                this.EnsurePersistent(crop);
+            }
+
+            return crop;
         }
     }
 }
