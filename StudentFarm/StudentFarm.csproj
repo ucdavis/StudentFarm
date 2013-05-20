@@ -180,6 +180,8 @@
     <Compile Include="Models\Availability.cs" />
     <Compile Include="Models\Buyer.cs" />
     <Compile Include="Models\BuyerAvailability.cs" />
+    <Compile Include="Models\FuzzyDateParser.cs" />
+    <Compile Include="Models\NumberParser.cs" />
     <Compile Include="Models\CropUnit.cs" />
     <Compile Include="Models\Crop.cs" />
     <Compile Include="Models\Price.cs" />
@@ -416,6 +418,7 @@
     <Content Include="Scripts\knockout-2.2.0.js" />
     <Content Include="Scripts\modernizr-2.6.2.js" />
     <Content Include="Scripts\_references.js" />
+    <Content Include="Notes.txt" />
     <Content Include="Web.config" />
     <Content Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>

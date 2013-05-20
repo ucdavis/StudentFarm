@@ -1,0 +1,100 @@
+﻿ @if (ViewBag.edit != -1) {
+        <text>
+            // Checks the input elements name against an array of names.
+            function check(item, names) {
+                for (var i = 0; i < names.length; i++) {
+                    if (item == names[i]) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            // Returns a function that assigns a value of -1 to certain input
+            // elements. The returned function is used in the onchange event
+            // for input type="text" elements in the table. If anything existing
+            //  is changed in the table, the many-to-many record ids 
+            // become invalid, and we want to indicate that.
+            function markChanged(change_cp) {
+                var checker;
+                if (change_cp) {
+                    checker = function(item) {
+                        return check(item, ['cp_id', 'offered_id']);
+                    };
+                }
+                else {
+                    checker = function(item) {
+                        return check(item, ['offered_id']);
+                    };
+                }
+
+                return function () {
+                    var row = this.parentNode.parentNode;
+                    if (row.className != 'changed') {
+                        var search = row.getElementsByTagName('input');
+        </text>
+        @:              for (var i = 0; i < search.length; i++) {
+        <text>
+                            if (checker(search[i].name)) {
+                                search[i].value = -1;
+                                row.className = 'changed';
+                            }
+                        }
+                    }
+                };
+            }
+
+            // Watch all existing fields for changes.
+            $('input[type="text"]').each(function (i, el) {
+                switch (el.name) {
+                    case 'product':
+                        el.addEventListener('change', markChanged(true));
+                        break;
+                    case 'packsize':
+                        el.addEventListener('change', markChanged(true));
+                        break;
+                    case 'unitprice':
+                        el.addEventListener('change', markChanged(true));
+                        break;
+                    case 'amount':
+                        el.addEventListener('change', markChanged(false));
+                        break;
+                }
+            });
+        </text>
+    }
+
+	Two hundred fifty-two thousand five hundred sixty-two
+	2
+	60
+	100
+	5
+	1000
+	2
+	50
+	100
+	2
+
+	2
+	100
+	50
+	2
+	1000
+	5
+	100
+	60
+	2
+
+	2 (< --> *) 100
+	200 (> && <1000 --> +) 50
+	250 (> && <1000 --> +) 2
+	252 (< --> *) 1000
+	252000 (> --> .) 5
+	252000 (> --> .) 5 (< --> *) 100
+	252000 (> --> .) 500 (> && <1000 --> +) 60
+	252000 (> --> .) 560 (> && <1000 --> +) 2
+	252000 : 562
+	252562
+
+	sixty-five
+	

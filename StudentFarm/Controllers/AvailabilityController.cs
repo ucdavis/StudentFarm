@@ -16,12 +16,12 @@ namespace StudentFarm.Controllers
         private readonly IRepository<Offered> offerRepo;
         private readonly IUnitRepository unitRepo;
         private readonly ICropUnitRepository cuRepo;
-        private readonly IRepository<BuyerAvailability> buyerAvailRepo;
+        private readonly IBuyerAvailabilityRepository buyerAvailRepo;
         private readonly IRepository<Buyer> buyerRepo;
 
         public AvailabilityController(IRepository<Availability> availRepo, ICropRepository cropRepo,
             IPriceRepository priceRepo, IRepository<Offered> offerRepo, IUnitRepository unitRepo,
-            ICropUnitRepository cuRepo, IRepository<BuyerAvailability> buyerAvailRepo, IRepository<Buyer> buyerRepo)
+            ICropUnitRepository cuRepo, IBuyerAvailabilityRepository buyerAvailRepo, IRepository<Buyer> buyerRepo)
         {
             this.availRepo = availRepo;
             this.cropRepo = cropRepo;
@@ -51,16 +51,30 @@ namespace StudentFarm.Controllers
         }
 
         //
-        // GET: /Availability/Create
-
-        public ActionResult Create()
+        // Get: /Availability/Create/5 or /Availability/Create
+        
+        public ActionResult Create(int id = -1)
         {
             ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
             ViewBag.buyers = this.buyerRepo.Queryable;
             ViewBag.printTime = new Del(printTime);
-            ViewBag.edit = -1;
+            ViewBag.edit = id;
+            ViewBag.create = true;
+            ViewBag.avail = this.availRepo.GetById(id);
 
             return View("edit");
+        }
+
+        // Takes an array and reverses the key and item, returning a Dictionary.
+        private Dictionary<K, int> reverse<K>(K[] arr)
+        {
+            Dictionary<K, int> reversed = new Dictionary<K, int>();
+            for (int i = 0; i < arr.Length; i++)
+            {
+                reversed.Add(arr[i], i);
+            }
+
+            return reversed;
         }
 
         //
@@ -70,7 +84,7 @@ namespace StudentFarm.Controllers
         [HttpPost]
         public ActionResult Create(String start_d, String end_d, int[] buyers, int[] buyer_id,
             String[] ostart_t, String[] ostart_d, String[] oend_t, String[] oend_d, String[] product,
-            int[] product_id,  String[] packsize, int[] packsize_id, double[] unitprice, double[] amount)
+            int[] product_id, String[] packsize, int[] packsize_id, double[] unitprice, double[] amount)
         {
             try
             {
@@ -82,25 +96,9 @@ namespace StudentFarm.Controllers
 
                 // Add Buyers. Index their positions in the form, keyed on id, first
                 // so we can use the right start/end datetimes.
-                Dictionary<int, int> dBuyer = new Dictionary<int, int>();
-                for (int i = 0; i < buyer_id.Length; i++)
-                {
-                    dBuyer.Add(buyer_id[i], i);
-                }
+                Dictionary<int, int> dBuyer = reverse<int>(buyer_id);
 
-                for (int i = 0; i < buyers.Length; i++)
-                {
-                    // Get the position of start/end time/date for this buyer in the POST input.
-                    int pos = dBuyer[buyers[i]];
-
-                    // Actually associate the buyer with this availability
-                    BuyerAvailability ba = new BuyerAvailability();
-                    ba.Availability = newAvail;
-                    ba.Buyer = this.buyerRepo.GetById(buyers[i]);
-                    ba.StartTime = DateTime.Parse(ostart_d[pos] + " " + ostart_t[pos]);
-                    ba.EndTime = DateTime.Parse(oend_d[pos] + " " + oend_t[pos]);
-                    this.buyerAvailRepo.EnsurePersistent(ba);
-                }
+                newAvail.UpdateBuyers(buyers, dBuyer, ostart_d, ostart_t, oend_d, oend_t);
 
                 // Check for existing CropUnits and associated prices. Create Offered records for everything, creating
                 // new CropUnit records and Price records if necessary.
@@ -116,11 +114,7 @@ namespace StudentFarm.Controllers
                     Price p = this.priceRepo.GetOrCreate(cu, unitprice[i]);
 
                     // Offer
-                    Offered offer = new Offered();
-                    offer.CropPrice = p;
-                    offer.Quantity = amount[i];
-                    offer.Availability = newAvail;
-                    this.offerRepo.EnsurePersistent(offer);
+                    newAvail.CreateOrUpdateOffer(cu, p, amount[i]);
                 }
 
                 // Return Offered Ids, so we can update the displayed table with them and
@@ -142,6 +136,7 @@ namespace StudentFarm.Controllers
             ViewBag.buyers = this.buyerRepo.Queryable;
             ViewBag.printTime = new Del(printTime);
             ViewBag.edit = id;
+            ViewBag.create = false;
             ViewBag.avail = this.availRepo.GetById(id);
 
             return View();
@@ -151,17 +146,48 @@ namespace StudentFarm.Controllers
         // POST: /Availability/Edit/5
 
         [HttpPost]
-        public ActionResult Edit(int id, FormCollection collection)
+        public ActionResult Edit(int id, String start_d, String end_d, int[] buyers, int[] buyer_id,
+            String[] ostart_t, String[] ostart_d, String[] oend_t, String[] oend_d, String[] product,
+            int[] product_id, String[] packsize, int[] packsize_id, double[] unitprice, double[] amount,
+            int[] cp_id, int[] offered_id)
         {
             try
             {
-                // TODO: Add update logic here
+                Availability avail = this.availRepo.GetById(id);
+                avail.DateStart = DateTime.Parse(start_d + " 12:00:00 AM");
+                avail.DateEnd = DateTime.Parse(end_d + " 11:59:59 PM");
+                this.availRepo.EnsurePersistent(avail);
 
-                return RedirectToAction("Index");
+                // Index buyer positions
+                Dictionary<int, int> dBuyer = reverse<int>(buyer_id);
+
+                // Modify buyer information as necessary. Prefer modifying over deleting/re-adding, because
+                // we want to be able to edit availabilities even after people have kind of made orders.
+                avail.UpdateBuyers(buyers, dBuyer, ostart_d, ostart_t, oend_d, oend_t);
+
+                // Delete/modify/add offered records as necessary
+                // Check for existing CropUnits and associated prices. Create Offered records for everything, creating
+                // new CropUnit records and Price records if necessary.
+                for (int i = 0; i < product.Length; i++)
+                {
+                    Crop crop = this.cropRepo.GetOrCreate(product_id[i], product[i]);
+                    Unit unit = this.unitRepo.GetOrCreate(packsize_id[i], packsize[i]);
+
+                    // Look for an associated CropUnit record
+                    CropUnit cu = this.cuRepo.GetOrCreate(crop, unit);
+
+                    // Look for a Price record
+                    Price p = this.priceRepo.GetOrCreate(cu, unitprice[i]);
+
+                    // Check whether or not this offer existed before editing.
+                    avail.CreateOrUpdateOffer(cu, p, amount[i], offered_id[i]);
+                }
+
+                return Content("Yup");
             }
             catch
             {
-                return View();
+                return Content("Nope");
             }
         }
 

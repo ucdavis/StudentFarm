@@ -3,13 +3,15 @@
 }
 
 @section subhead {
-    @if (ViewBag.edit == -1) {
+    @if (ViewBag.edit == -1 || ViewBag.create) {
         <h2>Add New Availability</h2>
     }
     else {
         <h2>Edit Availability</h2>
     }
 }
+
+<div id="alert-placeholder"></div>
 
 @* On the edit availability and/or view past availabilities page, should have a "save as new" button or something
    to copy old availabilities to new ones, which I suspect will be an extremely frequent activity *@
@@ -23,7 +25,7 @@
             <div id="opts_form" class="accordion-body collapse">
                 @{
                     String today, twodays;
-                    if (ViewBag.edit == -1) {
+                    if (ViewBag.edit == -1 || ViewBag.create) {
                         today = DateTime.Today.ToShortDateString();
                         twodays = DateTime.Today.AddDays(2).ToShortDateString();
                     }
@@ -31,10 +33,15 @@
                         today = ViewBag.avail.DateStart.ToShortDateString();
                         twodays = ViewBag.avail.DateEnd.ToShortDateString();
                     }
+                    
+                    TimeSpan duration = new TimeSpan();
+                    if (ViewBag.create) {
+                        duration = DateTime.Today.Subtract(ViewBag.avail.DateStart);
+                    }
                 }
                 <div class="accordion-inner">
                     <h4>Availability is for delivery date(s) between:</h4>
-                    <input type="text" class="date" name="start_d" value="@today" /> and <input type="text" class="date" name="end_d" value="@twodays" />
+                    <input type="text" class="date" id="delivery_start" name="start_d" value="@today" /> and <input type="text" class="date" name="end_d" value="@twodays" />
                     <h4>Offer to:</h4>
                     @foreach (StudentFarm.Models.Buyer buyer in ViewBag.buyers) {
                         // Html attributes. Null in MVC4 means the attribute doesn't get displayed, so
@@ -44,7 +51,7 @@
                         
                         // Order dates. Defaults to today and two days from today, but if this buyer's
                         // associated with this availability, we can modify it through these variables.
-                        String startday = today, endday = twodays;
+                        String startday = "one day", endday = "one day";
                         
                         // Easier access to the buyeravailability record.
                         StudentFarm.Models.BuyerAvailability buya = null;
@@ -59,8 +66,21 @@
                                 {
                                     check = "checked";
                                     display = null;
-                                    startday = buya.StartTime.ToShortDateString();
-                                    endday = buya.EndTime.ToShortDateString();
+                                    /*
+                                    DateTime start;
+                                    DateTime end;
+                                    start = buya.StartTime;
+                                    end = buya.EndTime;
+
+                                    if (ViewBag.create)
+                                    {
+                                        start = start.Add(duration);
+                                        end = end.Add(duration);
+                                    }
+                                    */
+                                    
+                                    startday = buya.RelStart;
+                                    endday = buya.RelEnd;
                                 }
                                 <input class="buyer" type="checkbox" name="buyers" value="@buyer.Id" checked="@check" /> @buyer.Name
                             }
@@ -86,9 +106,8 @@
                                             @ViewBag.printTime(i)
                                         }
                                     }
-                                </select>
-                                on
-                                <input type="text" class="date" name="ostart_d" value="@startday" /><br />
+                                </select>,
+                                <input type="text" name="ostart_d" value="@startday" /> before <span class="delivery">@today</span>.<br />
                         
                                 End: <select name="oend_t">
                                     @for (int i = 0; i < 1440; i += 15)
@@ -103,9 +122,8 @@
                                             @ViewBag.printTime(i)
                                         }
                                     }
-                                </select>
-                                on
-                                <input type="text" class="date" name="oend_d" value="@endday" /><br />
+                                </select>,
+                                <input type="text" name="oend_d" value="@endday" /> before <span class="delivery">@today</span>.<br />
                             </p>
                        </div>
                     }
@@ -116,6 +134,7 @@
 
     <table class="table" id="main_tab">
         <tr>
+            <th>&nbsp;</th>
             <th>Product</th>
             <th>Pack Size</th>
             <th>Unit Price ($)</th>
@@ -123,6 +142,7 @@
         </tr>
         @if (ViewBag.edit == -1) {
             <tr>
+                <td><button class="btn btn-danger remove-button" type="button"><i class="icon-remove"></i></button></td>
                 <td><input type="text" name="product" class="typeahead" /><input type="hidden" name="product_id" /></td>
                 <td><input type="text" name="packsize" class="typeahead" /><input type="hidden" name="packsize_id" /></td>
                 <td><input type="text" name="unitprice" /></td>
@@ -134,6 +154,7 @@
             {
                 StudentFarm.Models.CropUnit cu = item.CropPrice.CropUnit;
                 <tr>
+                    <td><button class="btn btn-danger remove-button" type="button"><i class="icon-remove"></i></button></td>
                     <td><input type="text" name="product" class="typeahead" value="@cu.Crop.Name" /><input type="hidden" name="product_id" value="@cu.Crop.Id" /></td>
                     <td><input type="text" name="packsize" class="typeahead" value="@cu.Unit.Name" /><input type="hidden" name="packsize_id" value="@cu.Unit.Id" /></td>
                     <td><input type="text" name="unitprice" value="@item.CropPrice.UnitPrice" /><input type="hidden" name="cp_id" value="@item.CropPrice.Id" /></td>
@@ -145,6 +166,11 @@
 </form>
 <button id="add" class="btn" type="button"><i class="icon-plus"></i> Add Stuff</button>
 <button id="save" class="btn btn-primary" type="button"><i class="icon-ok"></i> Save</button>
+
+@if (ViewBag.create)
+{
+    ViewBag.edit = -1;
+}
 
 @section AdditionalScripts {
 <script type="text/javascript">
@@ -200,7 +226,9 @@
         var inp = document.createElement('input');
         inp.type = type;
         inp.name = name;
-        inp.className = classy;
+        if (classy.length > 0) {
+            inp.className = classy;
+        }
 
         col.appendChild(inp);
 
@@ -212,8 +240,10 @@
     }
 
     // Makes new column with hidden field for id
-    function new_col_with_id(type, name, classy, id_fld_name) {
-        var col = new_col(type, name, classy);
+    function new_col_with_id(type, name, id_fld_name, classy, colclass) {
+        colclass = colclass ? colclass : null;
+        classy = classy ? classy : "";
+        var col = new_col(type, name, classy, colclass);
         
         var hid = document.createElement('input');
         hid.type = "hidden";
@@ -224,16 +254,53 @@
         return col;
     }
 
+    // Deletes a row. Called by remove buttons, so "this" would be the remove buttons themselves.
+    function delete_row() {
+        var row = this.parentNode.parentNode;
+        row.parentNode.removeChild(row);
+    }
+
+    // Makes new column with remove button
+    function new_del_btn() {
+        var col = document.createElement('td');
+
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-danger remove-button';
+        btn.type = 'button';
+
+        var icn = document.createElement('i');
+        icn.className = 'icon-remove';
+
+        btn.appendChild(icn);
+        col.appendChild(btn);
+
+        btn.addEventListener('click', delete_row);
+
+        return col;
+    }
+
     // Set up actions for "Add Stuff" button.
     var add_btn = document.getElementById('add');
     add_btn.addEventListener('click', function (e) {
         var tab = document.getElementById('main_tab');
         var row = document.createElement('tr');
-        var prod = new_col_with_id("text", "product", "typeahead", "product_id");
-        var unit = new_col_with_id("text", "packsize", "typeahead", "packsize_id");
-        var price = new_col("text", "unitprice", "");
-        var amt = new_col("text", "amount", "", "highlight");
+        var del_btn = new_del_btn();
+        var prod = new_col_with_id("text", "product", "product_id", "typeahead");
+        var unit = new_col_with_id("text", "packsize", "packsize_id", "typeahead");
+        @if (ViewBag.edit == -1) {
+            <text>
+                var price = new_col("text", "unitprice", "");
+                var amt = new_col("text", "amount", "", "highlight");
+            </text>
+        }
+        else {
+            <text>
+                var price = new_col_with_id("text", "unitprice", "cp_id");
+                var amt = new_col_with_id("text", "amount", "offered_id", "", "highlight");
+            </text>
+        }
 
+        row.appendChild(del_btn);
         row.appendChild(prod);
         row.appendChild(unit);
         row.appendChild(price);
@@ -244,17 +311,50 @@
 
     // Set up actions for "Save" button
     var save_btn = document.getElementById('save');
-    save_btn.addEventListener('click', function (e) {
-        $.post('@(ViewBag.url)availability/create', $('form').first().serialize(), function (data) {
-            if (data != 'Nope') {
-                window.location.href = '@(ViewBag.url)availability';
-            }
-        });
+    @if (ViewBag.edit == -1) {
+        <text>
+            save_btn.addEventListener('click', function (e) {
+                $.post('@(ViewBag.url)availability/create', $('form').first().serialize(), function (data) {
+                    if (data != 'Nope') {
+                        window.location.href = '@(ViewBag.url)availability';
+                    }
+                });
+            });
+        </text>
+    }
+    else 
+    {
+        <text>
+            save_btn.addEventListener('click', function (e) {
+                $.post('@(ViewBag.url)availability/edit/@ViewBag.edit', $('form').first().serialize(), function (data) {
+                    if (data != 'Nope') {
+                        $('#alert-placeholder').append("<div class='alert alert-success'><button type='button' class='close' data-dismiss='alert'>&times;</button>Saved successfully! <a href='@(ViewBag.url)availability'>I'm done editing now!</a></div>");
+                    }
+                });
+            });
+    </text>
+    }
+
+    // Set up actions for X buttons.
+    $('.remove-button').each(function (i, el) {
+        el.addEventListener('click', delete_row);
     });
 
     // Set up calendars
     $('.date').each(function(i, el) {
-        $(el).datepicker();
+        $(el).datepicker({
+            onSelect: function () {
+                $(this).change();
+            }
+        });
+    });
+
+    // Set up date-changer for text under order times
+    $('#delivery_start').change(function () {
+        var day = this.value;
+        $('.delivery').each(function (i, el) {
+            el.innerHTML = day;
+        });
     });
 
     // Set up buyer checkbox toggles

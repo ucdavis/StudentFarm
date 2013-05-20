@@ -144,6 +144,10 @@ td.highlight, th.highlight {
     background-color: #e6e6e6;
 }
 
+.remove-button {
+    margin-bottom: 9px;
+}
+
 /*
     Menu Bars
 -------------------------------------------------------------*/

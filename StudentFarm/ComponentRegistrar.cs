@@ -32,6 +32,7 @@ namespace StudentFarm
             container.Register(Component.For<IUnitRepository>().ImplementedBy<UnitRepository>());
             container.Register(Component.For<ICropUnitRepository>().ImplementedBy<CropUnitRepository>());
             container.Register(Component.For<IPriceRepository>().ImplementedBy<PriceRepository>());
+            container.Register(Component.For<IBuyerAvailabilityRepository>().ImplementedBy<BuyerAvailabilityRepository>());
         }
     }
 }

@@ -4,6 +4,8 @@ using System.Linq;
 using System.Web;
 using FluentNHibernate.Mapping;
 using UCDArch.Core.DomainModel;
+using UCDArch.Core.PersistanceSupport;
+using UCDArch.Data.NHibernate;
 
 namespace StudentFarm.Models
 {
@@ -26,11 +28,11 @@ namespace StudentFarm.Models
         public virtual String GetBuyerNames()
         {
             int numBuyers = this.Buyers.Count;
-            if (numBuyers <= 1)
+            if (numBuyers == 1)
             {
                 return this.Buyers.First().Buyer.Name;
             }
-            else
+            else if (numBuyers > 0)
             {
                 List<String> buyers = new List<String>();
 
@@ -41,6 +43,8 @@ namespace StudentFarm.Models
 
                 return String.Join(", ", buyers);
             }
+
+            return "";
         }
 
         // Checks whether or not buyer with id Id was assigned this availability.
@@ -55,6 +59,31 @@ namespace StudentFarm.Models
             }
 
             return null;
+        }
+
+        public virtual void UpdateBuyers(int[] buyers, Dictionary<int, int> dBuyer,
+            String[] start_d, String[] start_t, String[] end_d, String[] end_t)
+        {
+            buyers = buyers ?? new int[0];
+
+            IBuyerAvailabilityRepository buyerAvailRepo = new BuyerAvailabilityRepository();
+            IRepository<Buyer> buyerRepo = new Repository<Buyer>();
+
+            for (var i = 0; i < buyers.Length; i++)
+            {    
+                int buyerId = buyers[i];
+                int pos = dBuyer[buyerId];
+
+                buyerAvailRepo.CreateOrUpdate(buyerId, this, buyerRepo.GetById(buyerId),
+                    start_d[pos], start_t[pos], end_d[pos], end_t[pos]);
+            }
+        }
+
+        public virtual void CreateOrUpdateOffer(CropUnit cu, Price p, double amount, int id = -1)
+        {
+            IOfferedRepository offeredRepo = new OfferedRepository();
+
+            offeredRepo.CreateOrUpdate(cu, p, amount, this, id);
         }
     }
 
