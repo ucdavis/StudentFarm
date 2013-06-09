@@ -57,14 +57,15 @@ namespace StudentFarm.Models
 
             Map(x => x.StartTime);
             Map(x => x.EndTime);
-            Map(x => x.RelStart);
-            Map(x => x.RelEnd);
+            Map(x => x.RelStart).Nullable();
+            Map(x => x.RelEnd).Nullable();
         }
     }
 
     public interface IBuyerAvailabilityRepository : IRepository<BuyerAvailability>
     {
-        BuyerAvailability CreateOrUpdate(int id, Availability avail, Buyer buyer, DateTime start, DateTime end);
+        BuyerAvailability CreateOrUpdate(int id, Availability avail, Buyer buyer, DateTime start, DateTime end,
+            String relstart, String relend);
         BuyerAvailability CreateOrUpdate(int id, Availability avail, Buyer buyer, String start_d,
             String start_t, String end_d, String end_t);
     }
@@ -72,7 +73,7 @@ namespace StudentFarm.Models
     public class BuyerAvailabilityRepository : Repository<BuyerAvailability>, IBuyerAvailabilityRepository
     {
         public BuyerAvailability CreateOrUpdate(int id, Availability avail, Buyer buyer, DateTime start,
-            DateTime end)
+            DateTime end, String relstart, String relend)
         {
             BuyerAvailability buyera = avail.HasBuyer(id);
 
@@ -84,6 +85,8 @@ namespace StudentFarm.Models
             }
             buyera.StartTime = start;
             buyera.EndTime = end;
+            buyera.RelStart = relstart;
+            buyera.RelEnd = relend;
 
             this.EnsurePersistent(buyera);
 
@@ -93,7 +96,10 @@ namespace StudentFarm.Models
         public BuyerAvailability CreateOrUpdate(int id, Availability avail, Buyer buyer, String start_d,
             String start_t, String end_d, String end_t)
         {
-            return CreateOrUpdate(id, avail, buyer, DateTime.Parse(start_d + " " + start_t), DateTime.Parse(end_d + " " + end_t));
+            FuzzyDateParser reldate = new FuzzyDateParser();
+            DateTime start = DateTime.Parse(reldate.Parse(start_d, avail.DateStart, true).ToShortDateString() + " " + start_t);
+            DateTime end = DateTime.Parse(reldate.Parse(end_d, avail.DateStart, true).ToShortDateString() + " " + end_t);
+            return CreateOrUpdate(id, avail, buyer, start, end, start_d, end_d);
         }
     }
 }

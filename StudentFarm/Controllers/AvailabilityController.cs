@@ -39,6 +39,11 @@ namespace StudentFarm.Controllers
         public ActionResult Index()
         {
             ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
+            
+            // Get date of beginning of week.
+            DateTime today = DateTime.Now;
+            ViewBag.WeekBegin = today.AddDays((int)today.DayOfWeek * -1);
+
             return View(this.availRepo.Queryable);
         }
 
@@ -215,6 +220,53 @@ namespace StudentFarm.Controllers
             {
                 return View();
             }
+        }
+
+        //
+        // POST: /Availability/OffersFrom
+
+        [HttpPost]
+        public ActionResult OffersFrom(DateTime start, DateTime end)
+        {
+            IQueryable<Availability> availq = this.availRepo.Queryable;
+            List<Dictionary<String, String>> offers = new List<Dictionary<String, String>>();
+
+            foreach (Availability avail in availq.Where(av => av.DateEnd.CompareTo(end) < 0)
+                                                 .Where(av => av.DateEnd.CompareTo(start) >= 0)
+                                                 .OrderBy(av => av.DateEnd))
+            {
+                Dictionary<String, String> data = new Dictionary<String, String>();
+                data.Add("start", avail.DateStart.ToShortDateString());
+                data.Add("end", avail.DateEnd.ToShortDateString());
+                data.Add("count", avail.Offered.Count.ToString());
+                data.Add("buyers", avail.GetBuyerNames());
+                data.Add("total", "");
+                data.Add("id", avail.Id.ToString());
+
+                offers.Add(data);
+            }
+
+            return Json(new Dictionary<String, Object> { {"offers", offers}, {"unit", unitify(start, end)} });
+        }
+
+        public String unitify(DateTime start, DateTime end)
+        {
+            // Figure out the number of days and return the appropriate unit.
+            int days = (int)end.Subtract(start).TotalDays + 1;
+
+            if (days == 1)
+                return "Day";
+
+            if (days % 365 == 0 || days % 366 == 0)
+                return Math.Abs(days / 365) > 1 ? (int)(days / 365) + " Years" : "Year";
+            else if (days % 30 <= 1 || days % 31 == 30 || days % 31 == 0)
+                return Math.Abs(days / 30) > 1 ? (int)(days / 30) + " Months" : "Month";
+            else if (days % 14 <= 1)
+                return days / 14 > 1 ? (days / 14) + " Fortnights" : "Fortnight";
+            else if (days % 7 <= 1)
+                return days / 7 > 1 ? (days / 7) + " Weeks" : "Week";
+            else
+                return days + " Days";
         }
 
         public delegate MvcHtmlString Del(int i, bool selected = false);

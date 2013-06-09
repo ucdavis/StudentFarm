@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using System.Text.RegularExpressions;
 
 namespace StudentFarm.Models
 {
@@ -103,9 +104,29 @@ namespace StudentFarm.Models
             for (int i = parts.Length - 1; i >= 0; i--)
             {
                 int pos;
-                if (int.TryParse(parts[i], out pos))
+                // Not sure if this is a good idea, but changing the numeric parser to parse
+                // numbers out of mixed strings.
+                if (int.TryParse(Regex.Replace(parts[i], "[^0-9]", String.Empty), out pos))
                 {
                     stack.Add(pos);
+                }
+
+                // Parse 'the' and 'a'
+                if (parts[i].ToLower().Equals("the") || parts[i].ToLower().Equals("a"))
+                {
+                    stack.Add(1);
+                }
+
+                // Parse 'a couple.' Since with something like a couple, 1 would've
+                // already been added, we want to make sure we remove that, if necessary, before adding 2.
+                if (parts[i].ToLower().Equals("couple"))
+                {
+                    if (i + 1 < parts.Length - 1 && parts[i + 1].ToLower().Equals("a"))
+                    {
+                        stack.RemoveAt(stack.Count - 1);
+                    }
+
+                    stack.Add(2);
                 }
 
                 pos = find(parts[i], ones);

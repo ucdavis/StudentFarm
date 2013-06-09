@@ -149,6 +149,21 @@ td.highlight, th.highlight {
 }
 
 /*
+    Styles for previous/forward buttons/tables on availability/offer pages
+-------------------------------------------------------------*/
+#picker_s, #picker_e {
+    width: auto;
+}
+
+.prev {
+    float: left;
+}
+
+.next {
+    float: right;
+}
+
+/*
     Menu Bars
 -------------------------------------------------------------*/
 .menu-bar { margin: 1em; }

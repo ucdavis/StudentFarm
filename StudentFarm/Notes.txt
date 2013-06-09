@@ -98,3 +98,37 @@
 
 	sixty-five
 	
+
+	the Thursday
+	one day
+	a day and a week
+	a month and a day
+	one month, two days
+	a day or two and a month.
+
+	Maybe split on "and"?
+	and
+	&
+	+
+
+	-------
+
+	0 Sunday
+	1 Monday
+	2 Tuesday
+	3 Wednesday
+	4 Thursday
+	5 Friday
+	6 Saturday
+
+	Algorithm for getting the number of days between two weekdays?
+
+	Thinking:
+	It's Tuesday (2). The Thursday before would be:
+
+	2 + 7 = 9 - 4 = 5 days?
+
+	It's Sunday. The Saturday before would be:
+	0 + 7 = 7 - 6 = 1 day.
+
+	Add 7, subtract day.

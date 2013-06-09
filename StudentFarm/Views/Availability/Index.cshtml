@@ -2,6 +2,8 @@
 
 @{
     ViewBag.Title = "Ordering Guides";
+
+    DateTime weekbegin = ViewBag.WeekBegin;
 }
 
 @section subhead {
@@ -11,15 +13,18 @@
 <a class="btn btn-primary main-action" href="@(ViewBag.url)availability/create">
     <i class="icon-plus"></i> Add Fresh Doohickey
 </a>
-<h3>Current</h3>
+<h3>Current Offers</h3>
 <table class="table table-hover">
-    <tr>
-        <th>From</th>
-        <th>To</th>
-        <th>No. Items</th>
-        <th>Offered To</th>
-        <th>&nbsp;</th>
-    </tr>
+    <thead>
+        <tr>
+            <th>From</th>
+            <th>To</th>
+            <th>No. Items</th>
+            <th>Offered To</th>
+            <th>&nbsp;</th>
+        </tr>
+    </thead>
+    <tbody>
     @foreach (var avail in Model.Where(av => av.DateEnd.CompareTo(DateTime.Now) >= 0).OrderBy(av => av.DateEnd))
     {
         <tr>
@@ -27,22 +32,34 @@
             <td>@avail.DateEnd.ToShortDateString()</td>
             <td>@avail.Offered.Count</td>
             <td>@avail.GetBuyerNames()</td>
-            <td class="actions-column wide"><a class="btn btn-primary" href="@(ViewBag.url)availability/create/@avail.Id"><i class="icon-retweet"></i> Copy</a> <a class="btn btn-success" href="@(ViewBag.url)availability/edit/@avail.Id"><i class="icon-pencil"></i> Edit</a> <a class="btn btn-warning" href="@(ViewBag.url)availability/delete/@avail.Id" title="Delete" alt="Delete"><i class="icon-remove"></i></a>
+            <td class="actions-column wide"><a class="btn btn-primary" href="@(ViewBag.url)availability/create/@avail.Id"><i class="icon-retweet"></i> Copy</a> <a class="btn btn-success" href="@(ViewBag.url)availability/edit/@avail.Id"><i class="icon-pencil"></i> Edit</a> <a class="btn btn-warning" href="@(ViewBag.url)availability/delete/@avail.Id" title="Delete"><i class="icon-remove"></i></a>
         </tr>
     }
+    </tbody>
 </table>
     
-<h3>Past</h3>
+<h3>Offers from the <span class="timeunit">Week</span> starting <span id="weekof">@weekbegin.ToShortDateString()</span></h3>
+<form id="picker">
+    <h4>View offers from between
+        @Html.AntiForgeryToken()
+        <input type="text" id="picker_s" name="start" value="@weekbegin.ToShortDateString()" />
+        and
+        <input type="text" id="picker_e" name="end" value="@weekbegin.AddDays(7).ToShortDateString()" />
+    </h4>
+</form>
 <table class="table table-hover">
-    <tr>
-        <th>From</th>
-        <th>To</th>
-        <th>No. Items</th>
-        <th>Offered To</th>
-        <th>Total Ordered</th>
-        <th>&nbsp;</th>
-    </tr>
-    @foreach (var avail in Model.Where(av => av.DateEnd.CompareTo(DateTime.Now) < 0).OrderBy(av => av.DateEnd))
+    <thead>
+        <tr>
+            <th>From</th>
+            <th>To</th>
+            <th>No. Items</th>
+            <th>Offered To</th>
+            <th>Total Ordered</th>
+            <th>&nbsp;</th>
+        </tr>
+    </thead>
+    <tbody id="displayer">
+    @foreach (var avail in Model.Where(av => av.DateEnd.CompareTo(weekbegin) >= 0).OrderBy(av => av.DateEnd))
     {
         <tr>
             <td>@avail.DateStart.ToShortDateString()</td>
@@ -55,4 +72,61 @@
             </td>
         </tr>
     }
+    </tbody>
 </table>
+<a id="prev" class="btn prev" href="#"><i class="icon-chevron-left"></i> Previous <span class="timeunit">Week</span></a>
+<a id="next" class="btn next" href="#">Next <span class="timeunit">Week</span> <i class="icon-chevron-right"></i></a>
+
+@section AdditionalScripts {
+    <script type="text/javascript">
+        var dates = { begin: 'picker_s', end: 'picker_e' };
+        var pickform = document.getElementById('picker');
+
+        for (var i in dates) {
+            var id = '#' + dates[i];
+            $(id).datepicker({
+                onSelect: function () {
+                    $(this).change();
+                }
+            });
+
+            // Fires when date is selected in calendar (due to onSelect handler, above)
+            // or when textbox changes.
+            $(id).change(function () {
+                var start = pickform.start.value;
+                var end = pickform.end.value;
+
+                // Don't do anything if period end date is before period begin date
+                if (Date.parse(end) >= Date.parse(start)) {
+                    // Make XHR call with both dates to get new data.
+                    $.post('@(ViewBag.url)availability' + '/offersfrom',
+                        $(pickform).serialize(),
+                        function success(data, status) {
+                            $('.timeunit').each(function (i, el) {
+                                el.innerHTML = data.unit;
+                            });
+                            document.getElementById('weekof').innerHTML = pickform.start.value;
+
+                            var disp = document.getElementById('displayer');
+                            disp.innerHTML = '';
+
+                            var avails = data.offers;
+
+                            for (var i = 0; i < avails.length; i++) {
+                                disp.innerHTML += "<tr>" +
+                                    "<td>" + avails[i].start + "</td>" +
+                                    "<td>" + avails[i].end + "</td>" +
+                                    "<td>" + avails[i].count + "</td>" +
+                                    "<td>" + avails[i].buyers + "</td>" +
+                                    "<td>" + avails[i].total + "</td>" +
+                                    '<td class="actions-column">' +
+                                        '<a class="btn btn-primary" href="@(ViewBag.url)availability/create/' + avails[i].id + '"><i class="icon-retweet"></i> Copy</a> <a class="btn" href="@(ViewBag.url)availability/details/' + avails[i].id + '"><i class="icon-file"></i> View</a>' +
+                                    "</td>" +
+                                "</tr>";
+                            }
+                        });
+                }
+            });
+        }
+    </script>
+}

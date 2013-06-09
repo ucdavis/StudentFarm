@@ -5,6 +5,9 @@
 @section subhead {
     @if (ViewBag.edit == -1 || ViewBag.create) {
         <h2>Add New Availability</h2>
+        @* StudentFarm.Models.FuzzyDateParser test = new StudentFarm.Models.FuzzyDateParser();
+        <h2>@test.Parse("1w 13d, 1 month", DateTime.Today, true).ToShortDateString()</h2>
+        <h2>@test.Parse("the thursday", DateTime.Today, true).ToShortDateString()</h2> *@
     }
     else {
         <h2>Edit Availability</h2>
@@ -35,7 +38,7 @@
                     }
                     
                     TimeSpan duration = new TimeSpan();
-                    if (ViewBag.create) {
+                    if (ViewBag.edit != -1 && ViewBag.create) {
                         duration = DateTime.Today.Subtract(ViewBag.avail.DateStart);
                     }
                 }
@@ -240,14 +243,16 @@
     }
 
     // Makes new column with hidden field for id
-    function new_col_with_id(type, name, id_fld_name, classy, colclass) {
+    function new_col_with_id(type, name, id_fld_name, classy, colclass, id) {
         colclass = colclass ? colclass : null;
         classy = classy ? classy : "";
+        id = id ? id : "";
         var col = new_col(type, name, classy, colclass);
         
         var hid = document.createElement('input');
         hid.type = "hidden";
         hid.name = id_fld_name;
+        hid.value = id;
 
         col.appendChild(hid);
 
@@ -295,8 +300,8 @@
         }
         else {
             <text>
-                var price = new_col_with_id("text", "unitprice", "cp_id");
-                var amt = new_col_with_id("text", "amount", "offered_id", "", "highlight");
+                var price = new_col_with_id("text", "unitprice", "cp_id", null, null, -1);
+                var amt = new_col_with_id("text", "amount", "offered_id", "", "highlight", -1);
             </text>
         }
 
@@ -344,12 +349,17 @@
     $('.date').each(function(i, el) {
         $(el).datepicker({
             onSelect: function () {
+                // Fires off change event so we can update the "before xx/xx/xxxx" under
+                // Order Times for each customer appropriately.
                 $(this).change();
             }
         });
     });
 
-    // Set up date-changer for text under order times
+    // Set up date-changer for text under order times. Because the datepicker fires off a
+    // change event when a date's selected, this function gets called if:
+    // 1. The user changes the text in the textbox
+    // 2. The user chooses a date via the datepicker.
     $('#delivery_start').change(function () {
         var day = this.value;
         $('.delivery').each(function (i, el) {
