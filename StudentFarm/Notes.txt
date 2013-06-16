@@ -132,3 +132,34 @@
 	0 + 7 = 7 - 6 = 1 day.
 
 	Add 7, subtract day.
+
+
+	Old stuff from Availability/OffersFrom and the associated function under XHR in Index.cshtml:
+
+	C#:
+	// List<Dictionary<String, String>> offers = new List<Dictionary<String, String>>();
+
+	    /*
+    Dictionary<String, String> data = new Dictionary<String, String>();
+    data.Add("start", avail.DateStart.ToShortDateString());
+    data.Add("end", avail.DateEnd.ToShortDateString());
+    data.Add("count", avail.Offered.Count.ToString());
+    data.Add("buyers", avail.GetBuyerNames());
+    data.Add("total", "");
+    data.Add("id", avail.Id.ToString());
+
+    offers.Add(data); */
+
+	JS:
+	for (var i = 0; i < avails.length; i++) {
+        disp.innerHTML += "<tr>" +
+            "<td>" + avails[i].start + "</td>" +
+            "<td>" + avails[i].end + "</td>" +
+            "<td>" + avails[i].count + "</td>" +
+            "<td>" + avails[i].buyers + "</td>" +
+            "<td>" + avails[i].total + "</td>" +
+            '<td class="actions-column">' +
+                '<a class="btn btn-primary" href="@(ViewBag.url)availability/create/' + avails[i].id + '"><i class="icon-retweet"></i> Copy</a> <a class="btn" href="@(ViewBag.url)availability/details/' + avails[i].id + '"><i class="icon-file"></i> View</a>' +
+            "</td>" +
+        "</tr>";
+    }

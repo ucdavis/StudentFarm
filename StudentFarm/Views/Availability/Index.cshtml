@@ -8,6 +8,7 @@
 
 @section subhead {
     <h2>Ordering Guides</h2>
+    <h3>@ViewBag.test</h3>
 }
 
 <a class="btn btn-primary main-action" href="@(ViewBag.url)availability/create">
@@ -66,7 +67,7 @@
             <td>@avail.DateEnd.ToShortDateString()</td>
             <td>@avail.Offered.Count</td>
             <td>@avail.GetBuyerNames()</td>
-            <td>&nbsp;</td>
+            <td>// TODO</td>
             <td class="actions-column">
                 <a class="btn btn-primary" href="@(ViewBag.url)availability/create/@avail.Id"><i class="icon-retweet"></i> Copy</a> <a class="btn" href="@(ViewBag.url)availability/details/@avail.Id"><i class="icon-file"></i> View</a>
             </td>
@@ -108,25 +109,50 @@
                             document.getElementById('weekof').innerHTML = pickform.start.value;
 
                             var disp = document.getElementById('displayer');
-                            disp.innerHTML = '';
-
-                            var avails = data.offers;
-
-                            for (var i = 0; i < avails.length; i++) {
-                                disp.innerHTML += "<tr>" +
-                                    "<td>" + avails[i].start + "</td>" +
-                                    "<td>" + avails[i].end + "</td>" +
-                                    "<td>" + avails[i].count + "</td>" +
-                                    "<td>" + avails[i].buyers + "</td>" +
-                                    "<td>" + avails[i].total + "</td>" +
-                                    '<td class="actions-column">' +
-                                        '<a class="btn btn-primary" href="@(ViewBag.url)availability/create/' + avails[i].id + '"><i class="icon-retweet"></i> Copy</a> <a class="btn" href="@(ViewBag.url)availability/details/' + avails[i].id + '"><i class="icon-file"></i> View</a>' +
-                                    "</td>" +
-                                "</tr>";
-                            }
+                            disp.innerHTML = data.offers;
                         });
                 }
             });
+        }
+
+        document.getElementById('prev').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var start = pickform.start.value;
+            var end = pickform.end.value;
+
+            // Subtract time interval from start to figure out new starting date
+            var diff = Date.parse(end) - Date.parse(start);
+            var new_start = new Date(Date.parse(start) - diff);
+            pickform.end.value = pickform.start.value;
+            pickform.start.value = (new_start.getMonth() + 1) + "/" + new_start.getDate() + "/" + new_start.getFullYear();
+
+            // Fire off change event
+            $(pickform.start).change();
+        });
+
+        document.getElementById('next').addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            var start = pickform.start.value;
+            var end = pickform.end.value;
+
+            // Add time interval to end to figure out new end date
+            var diff = Date.parse(end) - Date.parse(start);
+            var new_end = new Date(Date.parse(end) + diff);
+            pickform.start.value = pickform.end.value;
+            pickform.end.value = (new_end.getMonth() + 1) + "/" + new_end.getDate() + "/" + new_end.getFullYear();
+
+            // Fire off change event
+            $(pickform.start).change();
+        });
+
+        // Fire off change event on page load in case the date in the textbox is different from
+        // the default date.
+        if (pickform.start.value != document.getElementById('weekof').value) {
+            $(pickform.start).change();
         }
     </script>
 }

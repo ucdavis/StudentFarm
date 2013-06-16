@@ -5,6 +5,7 @@ using System.Web;
 using System.Web.Mvc;
 using UCDArch.Core.PersistanceSupport;
 using StudentFarm.Models;
+using System.Web.Security;
 
 namespace StudentFarm.Controllers
 {
@@ -35,10 +36,11 @@ namespace StudentFarm.Controllers
 
         //
         // GET: /Availability/
-
         public ActionResult Index()
         {
-            ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
+            ViewBag.test = User.Identity.Name;
+          //  Roles.AddUsersToRoles(new String[] { "ericflin" }, new String[] { "Admin" });
+          //  ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
             
             // Get date of beginning of week.
             DateTime today = DateTime.Now;
@@ -229,21 +231,24 @@ namespace StudentFarm.Controllers
         public ActionResult OffersFrom(DateTime start, DateTime end)
         {
             IQueryable<Availability> availq = this.availRepo.Queryable;
-            List<Dictionary<String, String>> offers = new List<Dictionary<String, String>>();
+            String offers = "";
 
-            foreach (Availability avail in availq.Where(av => av.DateEnd.CompareTo(end) < 0)
+            foreach (Availability avail in availq.Where(av => av.DateEnd.CompareTo(end.AddDays(1)) < 0)
                                                  .Where(av => av.DateEnd.CompareTo(start) >= 0)
                                                  .OrderBy(av => av.DateEnd))
             {
-                Dictionary<String, String> data = new Dictionary<String, String>();
-                data.Add("start", avail.DateStart.ToShortDateString());
-                data.Add("end", avail.DateEnd.ToShortDateString());
-                data.Add("count", avail.Offered.Count.ToString());
-                data.Add("buyers", avail.GetBuyerNames());
-                data.Add("total", "");
-                data.Add("id", avail.Id.ToString());
-
-                offers.Add(data);
+                // Doing it this way is way faster than sticking it all in a JSON object and putting
+                // the data in the table with Javascript
+                offers += "<tr>" +
+                            "<td>" + avail.DateStart.ToShortDateString() + "</td>" +
+                            "<td>" + avail.DateEnd.ToShortDateString() + "</td>" +
+                            "<td>" + avail.Offered.Count + "</td>" +
+                            "<td>" + avail.GetBuyerNames() + "</td>" +
+                            "<td>" + "// TODO" + "</td>" +
+                            "<td class=\"actions-column\">" +
+                                "<a class=\"btn btn-primary\" href=\"availability/create/" + avail.Id + "\"><i class=\"icon-retweet\"></i> Copy</a> <a class=\"btn\" href=\"availability/details/" + avail.Id + "\"><i class=\"icon-file\"></i> View</a>" +
+                            "</td>" +
+                        "</tr>";
             }
 
             return Json(new Dictionary<String, Object> { {"offers", offers}, {"unit", unitify(start, end)} });
