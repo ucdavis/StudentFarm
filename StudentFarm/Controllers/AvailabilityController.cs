@@ -39,6 +39,9 @@ namespace StudentFarm.Controllers
         public ActionResult Index()
         {
             ViewBag.test = User.Identity.Name;
+
+            Roles.CreateRole("Admin");
+
           //  Roles.AddUsersToRoles(new String[] { "ericflin" }, new String[] { "Admin" });
           //  ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
             

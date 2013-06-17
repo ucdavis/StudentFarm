@@ -28,6 +28,7 @@ namespace StudentFarm.Providers
         }
     }
 
+    // Should really write unit tests for this thing. Maybe Microsoft has some?
     public class SFRoleProvider : RoleProvider
     {
         public override string ApplicationName { get; set; }
@@ -87,7 +88,7 @@ namespace StudentFarm.Providers
                 {
                     conn.Open();
                     SqlCommand checkRole = new SqlCommand("SELECT Id FROM " + table + " WHERE " + col + " = @Name", conn);
-                    checkRole.Parameters.AddWithValue("@Name", name);
+                    checkRole.Parameters.Add("@Name", System.Data.SqlDbType.NVarChar).Value = name;
                     return (int)checkRole.ExecuteScalar();
                 }
             }
@@ -192,8 +193,8 @@ namespace StudentFarm.Providers
                                 SqlCommand addUserRole = conn.CreateCommand();
                                 addUserRole.CommandText = "INSERT INTO " + roleInfo.Table + " VALUES (@UId, @RoleId)";
                                 addUserRole.Transaction = transaction;
-                                addUserRole.Parameters.AddWithValue("@RoleId", roleInfo.Id);
-                                addUserRole.Parameters.AddWithValue("@UId", uId);
+                                addUserRole.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = roleInfo.Id;
+                                addUserRole.Parameters.Add("@UId", System.Data.SqlDbType.Int).Value = uId;
                                 addUserRole.ExecuteNonQuery();
                             }
                         }
@@ -229,10 +230,7 @@ namespace StudentFarm.Providers
                     SqlCommand newRole = conn.CreateCommand();
                     newRole.CommandText = "INSERT INTO Roles (Role) VALUES (@RoleName)";
 
-                    SqlParameter roleNameParam = newRole.CreateParameter();
-                    roleNameParam.ParameterName = "@RoleName";
-                    roleNameParam.SqlDbType = System.Data.SqlDbType.NVarChar;
-                    roleNameParam.Value = roleName;
+                    newRole.Parameters.Add("@RoleName", System.Data.SqlDbType.NVarChar).Value = roleName;
 
                     newRole.ExecuteNonQuery();
                 }
@@ -252,10 +250,7 @@ namespace StudentFarm.Providers
                     SqlCommand roleCheck = conn.CreateCommand();
                     roleCheck.CommandText = "SELECT * FROM " + role.Table + " where " + role.IdType + " = @Id";
 
-                    SqlParameter roleId = roleCheck.CreateParameter();
-                    roleId.SqlDbType = System.Data.SqlDbType.Int;
-                    roleId.ParameterName = "@Id";
-                    roleId.Value = role.Id;
+                    roleCheck.Parameters.Add("@Id", System.Data.SqlDbType.Int).Value = role.Id;
 
                     // Execute scalar returns null if role is empty
                     return !(roleCheck.ExecuteScalar() == null);
@@ -471,15 +466,8 @@ namespace StudentFarm.Providers
                     SqlCommand comm = conn.CreateCommand();
                     comm.CommandText = "SELECT UserId FROM " + role.Table + " WHERE " + role.IdType + " = @RoleId AND UserId = @UserId";
                     
-                    SqlParameter roleid = comm.CreateParameter();
-                    roleid.ParameterName = "@RoleId";
-                    roleid.SqlDbType = System.Data.SqlDbType.Int;
-                    roleid.Value = role.Id;
-
-                    SqlParameter userid = comm.CreateParameter();
-                    userid.ParameterName = "@UserId";
-                    userid.SqlDbType = System.Data.SqlDbType.Int;
-                    userid.Value = uId;
+                    comm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = role.Id;
+                    comm.Parameters.Add("@UserId", System.Data.SqlDbType.Int).Value = uId;
 
                     conn.Open();
 
@@ -500,12 +488,36 @@ namespace StudentFarm.Providers
         {
             using (SqlConnection conn = new SqlConnection(ConnectionString))
             {
-                SqlCommand comm = conn.CreateCommand();
                 SqlTransaction transact = conn.BeginTransaction();
 
-                foreach (string role in roleNames)
+                try
                 {
-                    RoleInfo roleInfo = GetRoleInfo(rName);
+                    foreach (string role in roleNames)
+                    {
+                        RoleInfo roleInfo = GetRoleInfo(role);
+
+                        foreach (string user in usernames)
+                        {
+                            int uId = GetUserIdFor(user);
+
+                            if (IsUserInRole(uId, roleInfo))
+                            {
+                                SqlCommand comm = conn.CreateCommand();
+                                comm.CommandText = "DELETE FROM " + roleInfo.Table + " WHERE UserId = @UserId AND " + roleInfo.IdType + " = @RoleId";
+                                comm.Parameters.Add("@UserId", System.Data.SqlDbType.Int).Value = uId;
+                                comm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = roleInfo.Id;
+
+                                comm.ExecuteNonQuery();
+                            }
+                        }
+                    }
+
+                    transact.Commit();
+                }
+                catch
+                {
+                    transact.Rollback();
+                    throw new Exception("Could not remove at least one user from role(s)");
                 }
             }
         }
