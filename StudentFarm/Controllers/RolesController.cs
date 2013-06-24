@@ -4,47 +4,43 @@ using System.Linq;
 using System.Web;
 using System.Web.Mvc;
 using UCDArch.Core.PersistanceSupport;
+using StudentFarm.Providers;
 using StudentFarm.Models;
+using System.Web.Security;
+using System.Configuration;
 
 namespace StudentFarm.Controllers
 {
-    // Let's make the Ids for details, etc. the availability Ids and
-    // display the orders for the availability based on who's logged in.
-    public class OrderController : ApplicationController
+    public class RolesController : ApplicationController
     {
+        private readonly IRepository<Buyer> buyerRepo;
+
+        public RolesController(IRepository<Buyer> buyerRepo)
+        {
+            this.buyerRepo = buyerRepo;
+        }
+
         //
-        // GET: /Order/
+        // GET: /Roles/
 
         public ActionResult Index()
         {
+            SFRoleProvider rp = (SFRoleProvider)Roles.Provider;
+            ViewBag.UserRoles = rp.GetUserRoles();
+            ViewBag.Roles = rp.GetAllRoles();
+            ViewBag.Buyers = this.buyerRepo.Queryable;
             return View();
         }
 
         //
-        // GET: /Order/Details/5
-
-        public ActionResult Details(int id)
-        {
-            return View();
-        }
-
-        //
-        // GET: /Order/Create
-
-        public ActionResult Create()
-        {
-            return View();
-        }
-
-        //
-        // POST: /Order/Create
+        // POST: /Roles/Create
 
         [HttpPost]
         public ActionResult Create(FormCollection collection)
         {
             try
             {
-                // TODO: Add insert logic here
+                
 
                 return RedirectToAction("Index");
             }
@@ -55,24 +51,16 @@ namespace StudentFarm.Controllers
         }
 
         //
-        // GET: /Order/Edit/5
-
-        public ActionResult Edit(int id)
-        {
-            return View();
-        }
-
-        //
-        // POST: /Order/Edit/5
+        // POST: /Roles/Edit/5
 
         [HttpPost]
-        public ActionResult Edit(int id, FormCollection collection)
+        public ActionResult Edit(string name, FormCollection collection)
         {
             try
             {
                 // TODO: Add update logic here
 
-                return RedirectToAction("Index");
+                return Json(new string[0] {});
             }
             catch
             {
@@ -81,18 +69,10 @@ namespace StudentFarm.Controllers
         }
 
         //
-        // GET: /Order/Delete/5
-
-        public ActionResult Delete(int id)
-        {
-            return View();
-        }
-
-        //
-        // POST: /Order/Delete/5
+        // POST: /Roles/Delete/5
 
         [HttpPost]
-        public ActionResult Delete(int id, FormCollection collection)
+        public ActionResult Delete(string name, FormCollection collection)
         {
             try
             {

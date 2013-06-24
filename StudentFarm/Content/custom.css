@@ -96,6 +96,15 @@ form .field-validation-valid {display: none;}
 form .input-validation-error {border-color: #B94A48;}
 .form-text { font-weight: bold;padding-top: 5px; }
 
+/*** Stuff copied from h3 ***/
+form .heading {
+    font-size: 24.5px;
+    color: #002855;
+    font-family: "futura-pt",Futura,"Trebuchet MS",Arial,sans-serif;
+    font-weight: 500;
+    line-height: 40px;
+}
+
 /*
     Styles for icon inside a link or button with text
 ------------------------------------------------------------*/

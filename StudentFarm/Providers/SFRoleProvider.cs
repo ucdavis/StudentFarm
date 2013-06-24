@@ -252,6 +252,8 @@ namespace StudentFarm.Providers
 
                     roleCheck.Parameters.Add("@Id", System.Data.SqlDbType.Int).Value = role.Id;
 
+                    conn.Open();
+
                     // Execute scalar returns null if role is empty
                     return !(roleCheck.ExecuteScalar() == null);
                 }
@@ -339,6 +341,8 @@ namespace StudentFarm.Providers
                     comm.Parameters.Add("@uNameMatch", System.Data.SqlDbType.NVarChar).Value = usernameToMatch;
                     comm.Parameters.Add("@roleId", System.Data.SqlDbType.Int).Value = role.Id;
 
+                    conn.Open();
+
                     SqlDataReader reader = comm.ExecuteReader();
 
                     while (reader.Read())
@@ -369,6 +373,8 @@ namespace StudentFarm.Providers
                     SqlCommand allRoles = conn.CreateCommand();
                     allRoles.CommandText = "SELECT Role FROM Roles";
 
+                    conn.Open();
+
                     SqlDataReader roleReader = allRoles.ExecuteReader();
 
                     while(roleReader.Read())
@@ -395,19 +401,19 @@ namespace StudentFarm.Providers
                 {
                     SqlCommand findRoles = conn.CreateCommand();
 
-                    /// -----------------------------------------------------------------------------------------------------------------------------------------
-                    /// -----------------------------------------------------------------------------------------------------------------------------------------
-                    /// TODO: Don't know if this query actually works. Should test.
-                    /// -----------------------------------------------------------------------------------------------------------------------------------------
-                    /// -----------------------------------------------------------------------------------------------------------------------------------------
                     findRoles.CommandText = "SELECT Role FROM Users u " +
                         "LEFT JOIN " +
-                        "   (SELECT Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles ON roles.UserId = u.Id " +
-                        "LEFT JOIN " +
-                        "   (SELECT Name As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) buyers ON buyers.UserId = u.Id " +
-                        "WHERE u.Username = @Username";
+	                        "(SELECT Role, UserId " +
+		                        "FROM " +
+			                        "(SELECT Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
+		                        "UNION " +
+			                        "(SELECT Name As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
+	                        ") roles ON roles.UserId = u.Id " +
+	                        "WHERE u.Username = @Username";
 
                     findRoles.Parameters.Add("@Username", System.Data.SqlDbType.NVarChar).Value = username;
+
+                    conn.Open();
 
                     SqlDataReader reader = findRoles.ExecuteReader();
 
@@ -488,6 +494,7 @@ namespace StudentFarm.Providers
         {
             using (SqlConnection conn = new SqlConnection(ConnectionString))
             {
+                conn.Open();
                 SqlTransaction transact = conn.BeginTransaction();
 
                 try
@@ -527,6 +534,52 @@ namespace StudentFarm.Providers
             if (GetRoleIdFor(roleName).HasValue)
                 return true;
             return false;
+        }
+
+        // Returns roles for all users. Copied query from GetRolesForUser.
+        public Dictionary<string, List<string>> GetUserRoles()
+        {
+            Dictionary<string, List<string>> uroles = new Dictionary<string, List<string>>();
+
+            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            {
+                try
+                {
+                    SqlCommand comm = conn.CreateCommand();
+                    comm.CommandText = "SELECT Username, Role FROM Users u " +
+                        "LEFT JOIN " +
+                            "(SELECT Role, UserId " +
+                                "FROM " +
+                                    "(SELECT ('r_' + Role) As Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
+                                "UNION " +
+                                    "(SELECT ('b_' + Name) As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
+                            ") roles ON roles.UserId = u.Id";
+
+                    conn.Open();
+
+                    SqlDataReader read = comm.ExecuteReader();
+
+                    while (read.Read())
+                    {
+                        string user = read["Username"] as string;
+                        string role = read["Role"] as string;
+
+                        if (user != null && role != null)
+                        {
+                            if (!uroles.ContainsKey(user))
+                                uroles.Add(user, new List<string>());
+
+                            uroles[user].Add(role);
+                        }
+                    }
+
+                    return uroles;
+                }
+                catch
+                {
+                    return null;
+                }
+            }
         }
     }
 }
