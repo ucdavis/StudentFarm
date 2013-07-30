@@ -14,10 +14,12 @@ namespace StudentFarm.Controllers
     public class RolesController : ApplicationController
     {
         private readonly IRepository<Buyer> buyerRepo;
+        private readonly IRepository<User> userRepo;
 
-        public RolesController(IRepository<Buyer> buyerRepo)
+        public RolesController(IRepository<Buyer> buyerRepo, IRepository<User> userRepo)
         {
             this.buyerRepo = buyerRepo;
+            this.userRepo = userRepo;
         }
 
         //
@@ -34,15 +36,35 @@ namespace StudentFarm.Controllers
 
         //
         // POST: /Roles/Create
+        // If we're calling create, the user shouldn't exist yet, so just have to create a user and add roles to the user.
 
         [HttpPost]
         public ActionResult Create(FormCollection collection)
         {
             try
             {
-                
+                // Create the new user
+                User newUser = new User();
+                newUser.Username = (string)collection["name"];
+                this.userRepo.EnsurePersistent(newUser);
+                this.userRepo.DbContext.CommitTransaction();
 
-                return RedirectToAction("Index");
+                // Add roles to said user.
+                List<string> roles = new List<string>();
+                foreach (string key in collection.AllKeys) {
+                    if (key != "name" && (key.StartsWith("r_") || key.StartsWith("b_"))) {
+                        roles.Add(key);
+                    }
+                }
+                Roles.AddUsersToRoles(new string[] { (string)collection["name"] }, roles.ToArray());
+
+                return Json(new
+                {
+                    alert = "<div id='add_user_alert' class='alert alert-success'>" +
+                        "<button type='button' class='close' data-dismiss='alert'>&times;</button>" +
+                        "<strong>User " + newUser.Username + " Added Successfully!</strong>" +
+                        "</div>"
+                });
             }
             catch
             {

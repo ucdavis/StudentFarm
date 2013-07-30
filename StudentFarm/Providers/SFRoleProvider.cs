@@ -34,6 +34,7 @@ namespace StudentFarm.Providers
         public override string ApplicationName { get; set; }
         private string ConnectionString { get; set; }
         private string ConnectionStringKey { get; set; }
+        private SqlConnection Connection;
 
         /*
          * Copy-Pasted from UCDArch.Web.Providers.CatbertRoleProvider
@@ -80,31 +81,60 @@ namespace StudentFarm.Providers
             if (string.IsNullOrEmpty(ConnectionString)) throw new ArgumentException("A Valid Connection Is Required");
         }
 
+        // Concept borrowed from http://stackoverflow.com/questions/7493319/is-the-database-connection-in-this-class-reusable
+        // because using (SqlConnection conn = new SqlConnection(ConnectionString) wasn't working for pooling connections
+        private void InstConn()
+        {
+            if (Connection == null || Connection.State == System.Data.ConnectionState.Closed)
+            {
+                Connection = new SqlConnection(ConnectionString);
+                Connection.Open();
+            }
+        }
+
+        private void ConnClose()
+        {
+            if (Connection != null && Connection.State != System.Data.ConnectionState.Closed)
+            {
+                Connection.Close();
+            }
+        }
+
         private int? GetIdFor(String table, String col, String name)
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(ConnectionString))
-                {
-                    conn.Open();
-                    SqlCommand checkRole = new SqlCommand("SELECT Id FROM " + table + " WHERE " + col + " = @Name", conn);
-                    checkRole.Parameters.Add("@Name", System.Data.SqlDbType.NVarChar).Value = name;
-                    return (int)checkRole.ExecuteScalar();
-                }
+                InstConn();
+
+                SqlCommand checkRole = Connection.CreateCommand();
+                checkRole.CommandText = "SELECT Id FROM dbo." + table + " WHERE " + col + " = @Name";
+                checkRole.Parameters.Add("@Name", System.Data.SqlDbType.NVarChar).Value = name;
+
+                // Connection.Open();
+                int id = (int)checkRole.ExecuteScalar();
+
+                ConnClose();
+
+                return id;
             }
             catch
             {
+                ConnClose();
                 return null;
             }
         }
 
         private int? GetRoleIdFor(String name)
         {
+            if (name.StartsWith("r_"))
+                name = name.Substring(2);
             return GetIdFor("Roles", "Role", name);
         }
 
         private int? GetBuyerIdFor(String name)
         {
+            if (name.StartsWith("b_"))
+                name = name.Substring(2);
             return GetIdFor("Buyers", "Name", name);
         }
 
@@ -169,35 +199,51 @@ namespace StudentFarm.Providers
             throw new ProviderException("Role name " + name + " could not be found.");
         }
 
-        // Roles are both "Buyers" and "Roles," so have to check both tables for everything.
-        // Also checks to make sure user isn't in role before adding. Not sure if this is
-        // expected behavior for a RoleProvider, but doing it anyway.
-        public override void AddUsersToRoles(string[] usernames, string[] roleNames)
-        {
-            using (SqlConnection conn = new SqlConnection(ConnectionString))
-            {
-                conn.Open();
-                SqlTransaction transaction = conn.BeginTransaction();
+        // Delegate for UserRolesGeneric method to create the right SQL Command
+        public delegate string SqlCommText(string table, string type);
 
+        // Method for shared logic for bulk actions on users and roles (i.e., adding and deleting)
+        public void UserRolesGeneric(string[] usernames, string[] roleNames, SqlCommText commandText)
+        {
+            Dictionary<string, int> userIds = new Dictionary<string, int>();
+            List<SqlCommand> comms = new List<SqlCommand>();
+
+            // Connection.Open();
+            foreach (string uName in usernames)
+            {
+                int uId = GetUserIdFor(uName);
+                userIds.Add(uName, uId);
+            }
+
+            foreach (string rName in roleNames)
+            {
+                RoleInfo roleInfo = GetRoleInfo(rName);
+
+                foreach (string uName in usernames)
+                {
+                    if (!IsUserInRole(userIds[uName], roleInfo))
+                    {
+                        SqlCommand userRoleComm = new SqlCommand();
+                        userRoleComm.CommandText = commandText(roleInfo.Table, roleInfo.IdType);
+                        userRoleComm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = roleInfo.Id;
+                        userRoleComm.Parameters.Add("@UId", System.Data.SqlDbType.Int).Value = userIds[uName];
+                        comms.Add(userRoleComm);
+                    }
+                }
+            }
+
+
+            InstConn();
+
+            using (SqlTransaction transaction = Connection.BeginTransaction())
+            {
                 try
                 {
-                    foreach (string rName in roleNames)
+                    foreach (SqlCommand comm in comms)
                     {
-                        RoleInfo roleInfo = GetRoleInfo(rName);
-
-                        foreach (string uName in usernames)
-                        {
-                            int uId = GetUserIdFor(uName);
-                            if (!IsUserInRole(uId, roleInfo))
-                            {
-                                SqlCommand addUserRole = conn.CreateCommand();
-                                addUserRole.CommandText = "INSERT INTO " + roleInfo.Table + " VALUES (@UId, @RoleId)";
-                                addUserRole.Transaction = transaction;
-                                addUserRole.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = roleInfo.Id;
-                                addUserRole.Parameters.Add("@UId", System.Data.SqlDbType.Int).Value = uId;
-                                addUserRole.ExecuteNonQuery();
-                            }
-                        }
+                        comm.Connection = Connection;
+                        comm.Transaction = transaction;
+                        comm.ExecuteNonQuery();
                     }
 
                     transaction.Commit();
@@ -207,6 +253,16 @@ namespace StudentFarm.Providers
                     transaction.Rollback();
                 }
             }
+
+            ConnClose();
+        }
+
+        // Roles are both "Buyers" and "Roles," so have to check both tables for everything.
+        // Also checks to make sure user isn't in role before adding. Not sure if this is
+        // expected behavior for a RoleProvider, but doing it anyway.
+        public override void AddUsersToRoles(string[] usernames, string[] roleNames)
+        {
+            UserRolesGeneric(usernames, roleNames, (table, type) => "INSERT INTO " + table + " VALUES (@UId, @RoleId)");
         }
 
         /*
@@ -223,17 +279,17 @@ namespace StudentFarm.Providers
 
             try
             {
-                using (SqlConnection conn = new SqlConnection(ConnectionString))
-                {
-                    conn.Open();
+                InstConn();
 
-                    SqlCommand newRole = conn.CreateCommand();
-                    newRole.CommandText = "INSERT INTO Roles (Role) VALUES (@RoleName)";
+                SqlCommand newRole = Connection.CreateCommand();
+                newRole.CommandText = "INSERT INTO Roles (Role) VALUES (@RoleName)";
 
-                    newRole.Parameters.Add("@RoleName", System.Data.SqlDbType.NVarChar).Value = roleName;
+                newRole.Parameters.Add("@RoleName", System.Data.SqlDbType.NVarChar).Value = roleName;
 
-                    newRole.ExecuteNonQuery();
-                }
+                // Connection.Open();
+                newRole.ExecuteNonQuery();
+
+                ConnClose();
             }
             catch(Exception ex)
             {
@@ -245,18 +301,19 @@ namespace StudentFarm.Providers
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(ConnectionString))
-                {
-                    SqlCommand roleCheck = conn.CreateCommand();
-                    roleCheck.CommandText = "SELECT * FROM " + role.Table + " where " + role.IdType + " = @Id";
+                InstConn();
 
-                    roleCheck.Parameters.Add("@Id", System.Data.SqlDbType.Int).Value = role.Id;
+                SqlCommand roleCheck = Connection.CreateCommand();
+                roleCheck.CommandText = "SELECT * FROM " + role.Table + " where " + role.IdType + " = @Id";
 
-                    conn.Open();
+                roleCheck.Parameters.Add("@Id", System.Data.SqlDbType.Int).Value = role.Id;
 
-                    // Execute scalar returns null if role is empty
-                    return !(roleCheck.ExecuteScalar() == null);
-                }
+                // Execute scalar returns null if role is empty
+                // Connection.Open();
+                bool rolePopd = !(roleCheck.ExecuteScalar() == null);
+                ConnClose();
+
+                return rolePopd;
             }
             catch
             {
@@ -280,44 +337,43 @@ namespace StudentFarm.Providers
             else
                 id = nid.Value;
 
-            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            InstConn();
+
+            if (throwOnPopulatedRole && PopulatedRole(new RoleInfo("RoleId", "UsersInRoles", id)))
             {
-                conn.Open();
-
-                if (throwOnPopulatedRole && PopulatedRole(new RoleInfo("RoleId", "UsersInRoles", id)))
-                {
-                    throw new ProviderException("Role is not empty and throwOnPopulatedRole was specified.");
-                }
-
-                SqlTransaction transact = conn.BeginTransaction();
-
-                // Don't actually need to delete users from roles, because the database should cascade deletes,
-                // but doing it anyway before deleting roles, just in case cascade deletes don't work.
-                try
-                {
-                    SqlParameter rIdParam = new SqlParameter("@Id", System.Data.SqlDbType.Int);
-                    rIdParam.Value = id;
-
-                    SqlCommand userRoleDelete = conn.CreateCommand();
-                    userRoleDelete.CommandText = "DELETE FROM UsersInRoles WHERE RoleId = @Id";
-                    userRoleDelete.Parameters.Add(rIdParam);
-                    userRoleDelete.ExecuteNonQuery();
-
-                    SqlCommand roleDelete = conn.CreateCommand();
-                    roleDelete.CommandText = "DELETE FROM Roles WHERE RoleId = @Id";
-                    roleDelete.Parameters.Add(rIdParam);
-                    roleDelete.ExecuteNonQuery();
-
-                    transact.Commit();
-                }
-                catch
-                {
-                    transact.Rollback();
-                    conn.Close();
-                    return false;
-                }
+                throw new ProviderException("Role is not empty and throwOnPopulatedRole was specified.");
             }
 
+            // Connection.Open();
+            SqlTransaction transact = Connection.BeginTransaction();
+
+            // Don't actually need to delete users from roles, because the database should cascade deletes,
+            // but doing it anyway before deleting roles, just in case cascade deletes don't work.
+            try
+            {
+                SqlParameter rIdParam = new SqlParameter("@Id", System.Data.SqlDbType.Int);
+                rIdParam.Value = id;
+
+                SqlCommand userRoleDelete = Connection.CreateCommand();
+                userRoleDelete.CommandText = "DELETE FROM UsersInRoles WHERE RoleId = @Id";
+                userRoleDelete.Parameters.Add(rIdParam);
+                userRoleDelete.ExecuteNonQuery();
+
+                SqlCommand roleDelete = Connection.CreateCommand();
+                roleDelete.CommandText = "DELETE FROM Roles WHERE RoleId = @Id";
+                roleDelete.Parameters.Add(rIdParam);
+                roleDelete.ExecuteNonQuery();
+
+                transact.Commit();
+            }
+            catch
+            {
+                transact.Rollback();
+                ConnClose();
+                return false;
+            }
+
+            ConnClose();
             return true;
         }
 
@@ -331,30 +387,30 @@ namespace StudentFarm.Providers
             RoleInfo role = GetRoleInfo(roleName);
             List<string> users = new List<string>();
 
-            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            InstConn();
+            try
             {
-                try
+                SqlCommand comm = Connection.CreateCommand();
+                comm.CommandText = "SELECT Username FROM " + role.Table + " LEFT JOIN Users ON " + role.IdType + " = Id " +
+                    "WHERE Username LIKE @uNameMatch AND " + role.IdType + " = @roleId";
+                comm.Parameters.Add("@uNameMatch", System.Data.SqlDbType.NVarChar).Value = usernameToMatch;
+                comm.Parameters.Add("@roleId", System.Data.SqlDbType.Int).Value = role.Id;
+
+                // Connection.Open();
+
+                SqlDataReader reader = comm.ExecuteReader();
+
+                while (reader.Read())
                 {
-                    SqlCommand comm = conn.CreateCommand();
-                    comm.CommandText = "SELECT Username FROM " + role.Table + " LEFT JOIN Users ON " + role.IdType + " = Id " +
-                        "WHERE Username LIKE @uNameMatch AND " + role.IdType + " = @roleId";
-                    comm.Parameters.Add("@uNameMatch", System.Data.SqlDbType.NVarChar).Value = usernameToMatch;
-                    comm.Parameters.Add("@roleId", System.Data.SqlDbType.Int).Value = role.Id;
-
-                    conn.Open();
-
-                    SqlDataReader reader = comm.ExecuteReader();
-
-                    while (reader.Read())
-                    {
-                        users.Add((string)reader["Username"]);
-                    }
-                }
-                catch
-                {
-                    return new string[] { "" };
+                    users.Add((string)reader["Username"]);
                 }
             }
+            catch
+            {
+                ConnClose();
+                return new string[] { "" };
+            }
+            ConnClose();
 
             return users.ToArray();
         }
@@ -366,27 +422,30 @@ namespace StudentFarm.Providers
         {
             List<string> roles = new List<string>();
 
-            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            InstConn();
+
+            try
             {
-                try
+                SqlCommand allRoles = Connection.CreateCommand();
+                allRoles.CommandText = "SELECT Role FROM Roles";
+
+                // Connection.Open();
+
+                SqlDataReader roleReader = allRoles.ExecuteReader();
+
+                while(roleReader.Read())
                 {
-                    SqlCommand allRoles = conn.CreateCommand();
-                    allRoles.CommandText = "SELECT Role FROM Roles";
-
-                    conn.Open();
-
-                    SqlDataReader roleReader = allRoles.ExecuteReader();
-
-                    while(roleReader.Read())
-                    {
-                        roles.Add((string)roleReader["Role"]);
-                    }
-                }
-                catch
-                {
-                    return new string[] { "" };
+                    roles.Add((string)roleReader["Role"]);
                 }
             }
+            catch
+            {
+                ConnClose();
+                return new string[] { "" };
+            }
+
+            ConnClose();
+
             return roles.ToArray();
         }
 
@@ -395,38 +454,39 @@ namespace StudentFarm.Providers
         {
             List<string> roles = new List<string>();
 
-            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            InstConn();
+
+            try
             {
-                try
+                SqlCommand findRoles = Connection.CreateCommand();
+
+                findRoles.CommandText = "SELECT Role FROM Users u " +
+                    "LEFT JOIN " +
+	                    "(SELECT Role, UserId " +
+		                    "FROM " +
+			                    "(SELECT Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
+		                    "UNION " +
+			                    "(SELECT Name As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
+	                    ") roles ON roles.UserId = u.Id " +
+	                    "WHERE u.Username = @Username";
+
+                findRoles.Parameters.Add("@Username", System.Data.SqlDbType.NVarChar).Value = username;
+
+                // Connection.Open();
+                SqlDataReader reader = findRoles.ExecuteReader();
+
+                while (reader.Read())
                 {
-                    SqlCommand findRoles = conn.CreateCommand();
-
-                    findRoles.CommandText = "SELECT Role FROM Users u " +
-                        "LEFT JOIN " +
-	                        "(SELECT Role, UserId " +
-		                        "FROM " +
-			                        "(SELECT Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
-		                        "UNION " +
-			                        "(SELECT Name As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
-	                        ") roles ON roles.UserId = u.Id " +
-	                        "WHERE u.Username = @Username";
-
-                    findRoles.Parameters.Add("@Username", System.Data.SqlDbType.NVarChar).Value = username;
-
-                    conn.Open();
-
-                    SqlDataReader reader = findRoles.ExecuteReader();
-
-                    while (reader.Read())
-                    {
-                        roles.Add((string)reader["Role"]);
-                    }
-                }
-                catch
-                {
-                    return new string[] { "" };
+                    roles.Add((string)reader["Role"]);
                 }
             }
+            catch
+            {
+                ConnClose();
+                return new string[] { "" };
+            }
+
+            ConnClose();
 
             return roles.ToArray();
         }
@@ -467,66 +527,71 @@ namespace StudentFarm.Providers
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(ConnectionString))
-                {
-                    SqlCommand comm = conn.CreateCommand();
-                    comm.CommandText = "SELECT UserId FROM " + role.Table + " WHERE " + role.IdType + " = @RoleId AND UserId = @UserId";
+                InstConn();
+                SqlCommand comm = Connection.CreateCommand();
+                comm.CommandText = "SELECT UserId FROM " + role.Table + " WHERE " + role.IdType + " = @RoleId AND UserId = @UserId";
                     
-                    comm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = role.Id;
-                    comm.Parameters.Add("@UserId", System.Data.SqlDbType.Int).Value = uId;
+                comm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = role.Id;
+                comm.Parameters.Add("@UserId", System.Data.SqlDbType.Int).Value = uId;
 
-                    conn.Open();
+                // Connection.Open();
 
-                    if (comm.ExecuteScalar() == null)
-                    {
-                        return false;
-                    }
-                    return true;
+                if (comm.ExecuteScalar() == null)
+                {
+                    ConnClose();
+                    return false;
                 }
+
+                ConnClose();
+                return true;
             }
             catch
             {
+                ConnClose();
                 return false;
             }
         }
 
         public override void RemoveUsersFromRoles(string[] usernames, string[] roleNames)
         {
-            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            UserRolesGeneric(usernames, roleNames, (table, type) => "DELETE FROM " + table + " WHERE UserId = @UserId AND " + type + " = @RoleId");
+            /*
+            InstConn();
+
+            // Connection.Open();
+            SqlTransaction transact = Connection.BeginTransaction();
+
+            try
             {
-                conn.Open();
-                SqlTransaction transact = conn.BeginTransaction();
-
-                try
+                foreach (string role in roleNames)
                 {
-                    foreach (string role in roleNames)
+                    RoleInfo roleInfo = GetRoleInfo(role);
+
+                    foreach (string user in usernames)
                     {
-                        RoleInfo roleInfo = GetRoleInfo(role);
+                        int uId = GetUserIdFor(user);
 
-                        foreach (string user in usernames)
+                        if (IsUserInRole(uId, roleInfo))
                         {
-                            int uId = GetUserIdFor(user);
+                            SqlCommand comm = Connection.CreateCommand();
+                            comm.CommandText = "DELETE FROM " + roleInfo.Table + " WHERE UserId = @UserId AND " + roleInfo.IdType + " = @RoleId";
+                            comm.Parameters.Add("@UserId", System.Data.SqlDbType.Int).Value = uId;
+                            comm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = roleInfo.Id;
 
-                            if (IsUserInRole(uId, roleInfo))
-                            {
-                                SqlCommand comm = conn.CreateCommand();
-                                comm.CommandText = "DELETE FROM " + roleInfo.Table + " WHERE UserId = @UserId AND " + roleInfo.IdType + " = @RoleId";
-                                comm.Parameters.Add("@UserId", System.Data.SqlDbType.Int).Value = uId;
-                                comm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = roleInfo.Id;
-
-                                comm.ExecuteNonQuery();
-                            }
+                            comm.ExecuteNonQuery();
                         }
                     }
+                }
 
-                    transact.Commit();
-                }
-                catch
-                {
-                    transact.Rollback();
-                    throw new Exception("Could not remove at least one user from role(s)");
-                }
+                transact.Commit();
             }
+            catch
+            {
+                transact.Rollback();
+                throw new Exception("Could not remove at least one user from role(s)");
+            }
+
+            ConnClose(); */
         }
 
         public override bool RoleExists(string roleName)
@@ -541,44 +606,44 @@ namespace StudentFarm.Providers
         {
             Dictionary<string, List<string>> uroles = new Dictionary<string, List<string>>();
 
-            using (SqlConnection conn = new SqlConnection(ConnectionString))
+            InstConn();
+            try
             {
-                try
+                SqlCommand comm = Connection.CreateCommand();
+                comm.CommandText = "SELECT Username, Role FROM Users u " +
+                    "LEFT JOIN " +
+                        "(SELECT Role, UserId " +
+                            "FROM " +
+                                "(SELECT ('r_' + Role) As Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
+                            "UNION " +
+                                "(SELECT ('b_' + Name) As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
+                        ") roles ON roles.UserId = u.Id";
+
+                // Connection.Open();
+
+                SqlDataReader read = comm.ExecuteReader();
+
+                while (read.Read())
                 {
-                    SqlCommand comm = conn.CreateCommand();
-                    comm.CommandText = "SELECT Username, Role FROM Users u " +
-                        "LEFT JOIN " +
-                            "(SELECT Role, UserId " +
-                                "FROM " +
-                                    "(SELECT ('r_' + Role) As Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
-                                "UNION " +
-                                    "(SELECT ('b_' + Name) As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
-                            ") roles ON roles.UserId = u.Id";
+                    string user = read["Username"] as string;
+                    string role = read["Role"] as string;
 
-                    conn.Open();
-
-                    SqlDataReader read = comm.ExecuteReader();
-
-                    while (read.Read())
+                    if (user != null && role != null)
                     {
-                        string user = read["Username"] as string;
-                        string role = read["Role"] as string;
+                        if (!uroles.ContainsKey(user))
+                            uroles.Add(user, new List<string>());
 
-                        if (user != null && role != null)
-                        {
-                            if (!uroles.ContainsKey(user))
-                                uroles.Add(user, new List<string>());
-
-                            uroles[user].Add(role);
-                        }
+                        uroles[user].Add(role);
                     }
+                }
 
-                    return uroles;
-                }
-                catch
-                {
-                    return null;
-                }
+                ConnClose();
+                return uroles;
+            }
+            catch
+            {
+                ConnClose();
+                return null;
             }
         }
     }
