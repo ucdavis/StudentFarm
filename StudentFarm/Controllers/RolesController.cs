@@ -51,19 +51,34 @@ namespace StudentFarm.Controllers
 
                 // Add roles to said user.
                 List<string> roles = new List<string>();
+
+                // Make separate lists for roles and groups for output (used in JSON output and
+                // ultimately by JS for dynamically adding info to table).
+                List<string> r = new List<string>();
+                List<string> g = new List<string>();
+
                 foreach (string key in collection.AllKeys) {
                     if (key != "name" && (key.StartsWith("r_") || key.StartsWith("b_"))) {
                         roles.Add(key);
+                        if (key.StartsWith("r_"))
+                            r.Add(key.Substring(2));
+                        else if (key.StartsWith("b_"))
+                            g.Add(key.Substring(2));
                     }
                 }
-                Roles.AddUsersToRoles(new string[] { (string)collection["name"] }, roles.ToArray());
+
+                Roles.AddUserToRoles((string)collection["name"], roles.ToArray());
 
                 return Json(new
                 {
                     alert = "<div id='add_user_alert' class='alert alert-success'>" +
                         "<button type='button' class='close' data-dismiss='alert'>&times;</button>" +
                         "<strong>User " + newUser.Username + " Added Successfully!</strong>" +
-                        "</div>"
+                        "</div>",
+                    id = newUser.Id,
+                    username = newUser.Username,
+                    roles = String.Join(", ", r),
+                    groups = String.Join(", ", g)
                 });
             }
             catch

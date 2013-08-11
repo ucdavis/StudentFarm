@@ -154,10 +154,10 @@
 
     // Modifies table appropriately (either editing or adding stuff)
     function modify_table(username, roles, groups, action) {
-        if (action == 'add_crop') {
+        if (action == 'add_user') {
             add_to_table(username, roles, groups);
         }
-        else if (action == 'edit_crop') {
+        else if (action == 'edit_user') {
             edit_table(username, roles, groups);
         }
     }
@@ -178,6 +178,7 @@
             '<td>' + groups + '</td>' +
             '<td class="actions-column"><a class="btn btn-success" href="#e_' + username + '"><i class="icon-pencil"></i> Edit</a> <a class="btn btn-warning" href="#d_' + username + '"><i class="icon-remove"></i> Delete</a></td>' +
             '</tr>');
+        // TODO: Need to somehow init_buttons() for the buttons added in this method.
     }
 
     function check_approp_boxes(frm, prefix, arr) {
@@ -202,7 +203,7 @@
                     var id = this.href.substr(this.href.indexOf('_') + 1);
 
                     // Populate form with data.
-                    if (this.href.indexOf('e') != -1) {
+                    if (this.href.indexOf('e_') != -1) {
                         var row = new UserRow(id);
 
                         var frm = document.getElementById('edit_user_frm');
@@ -222,7 +223,7 @@
                     }
 
                     // Should have confirmation dialog for this.
-                    else if (this.href.indexOf('d') != -1) {
+                    else if (this.href.indexOf('d_') != -1) {
                         (function (self) {
                             $.post('@(ViewBag.url)roles/delete/' + id, '__RequestVerificationToken=' + token, function () {
                                 var row = self.parentNode.parentNode;
