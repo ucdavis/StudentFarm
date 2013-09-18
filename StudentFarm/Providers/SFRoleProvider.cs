@@ -477,7 +477,10 @@ namespace StudentFarm.Providers
 
                 while (reader.Read())
                 {
-                    roles.Add((string)reader["Role"]);
+                    if (!reader.IsDBNull(reader.GetOrdinal("Role")))
+                    {
+                        roles.Add((string)reader["Role"]);
+                    }
                 }
             }
             catch
@@ -628,12 +631,13 @@ namespace StudentFarm.Providers
                     string user = read["Username"] as string;
                     string role = read["Role"] as string;
 
-                    if (user != null && role != null)
+                    if (user != null)
                     {
                         if (!uroles.ContainsKey(user))
                             uroles.Add(user, new List<string>());
 
-                        uroles[user].Add(role);
+                        if (role != null)
+                            uroles[user].Add(role);
                     }
                 }
 

@@ -127,7 +127,14 @@ namespace StudentFarm.Controllers
             try
             {
                 // Delete all the user's current roles
-                Roles.RemoveUserFromRoles(id, Roles.GetRolesForUser(id));
+                string[] roleNames = Roles.GetRolesForUser(id);
+                if (roleNames.Length > 0)
+                    Roles.RemoveUserFromRoles(id, roleNames);
+
+                // Delete the user
+                User curUser = this.userRepo.Queryable.Where(u => u.Username.Equals(id)).First();
+                this.userRepo.Remove(curUser);
+                this.userRepo.DbContext.CommitTransaction();
 
                 return null;
             }

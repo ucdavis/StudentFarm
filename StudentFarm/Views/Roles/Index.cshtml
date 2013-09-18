@@ -167,7 +167,7 @@
     }
 
     function edit_table(username, roles, groups) {
-        var row = new CropRow(id);
+        var row = new UserRow(username);
 
         row.set('name', username);
         row.set('roles', roles);
@@ -183,6 +183,8 @@
             '<td class="actions-column"><a class="btn btn-success" href="#e_' + username + '"><i class="icon-pencil"></i> Edit</a> <a class="btn btn-warning" href="#d_' + username + '"><i class="icon-remove"></i> Delete</a></td>' +
             '</tr>');
         // TODO: Need to somehow init_buttons() for the buttons added in this method.
+        // Perhaps:
+        init_buttons();
     }
 
     function check_approp_boxes(frm, prefix, arr) {
@@ -263,7 +265,7 @@
                                 msg.innerHTML = data.alert;
 
                                 if (data.id != -1) { modify_table(data.username, data.roles, data.groups, modals[i]); }
-                                clear_form(frm);
+                                if (modals[i] == 'add_user') { clear_form(frm); }
 
                                 setTimeout(function () {
                                     msg.innerHTML = "";
