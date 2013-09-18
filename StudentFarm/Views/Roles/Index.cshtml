@@ -9,6 +9,8 @@
 <a class="btn btn-primary main-action" href="#add_user" role="button" data-toggle="modal">
     <i class="icon-plus"></i> Add New User
 </a>
+
+<!-- Add User Dialog Box -->
 <div id="add_user" class="modal hide">
     <div class="modal-header">
         <a class="close" href="#" data-dismiss="modal" aria-hidden="true">&times;</a>
@@ -40,7 +42,9 @@
     </div>
 </div>
 
-<div id="edit_crop" class="modal hide">
+
+<!-- Edit User Dialog Box -->
+<div id="edit_user" class="modal hide">
     <div class="modal-header">
         <a class="close" href="#" data-dismiss="modal" aria-hidden="true">&times;</a>
         <h3></h3>
@@ -49,7 +53,7 @@
         <div id="edit_user_msg"><!-- Placeholder for alert to be inserted from XHR. Kinda hackish. --></div>
         <form id="edit_user_frm" class="form-horizontal">
             <label for="name" class="heading">Username</label>
-                <input type="text" id="e_name" name="name" placeholder="Kerberos Username" />
+                <input type="text" id="e_name" name="name" placeholder="Kerberos Username" disabled="disabled" />
 
             <h3>Roles</h3>
             @foreach(string role in ViewBag.Roles) {
@@ -217,9 +221,9 @@
                         check_approp_boxes(frm, "r_", roles);
                         check_approp_boxes(frm, "b_", groups);
 
-                        $('#edit_crop h3').first().text('Editing ' + frm.name.value);
+                        $('#edit_user h3').first().text('Editing ' + frm.name.value);
 
-                        $('#edit_crop').modal();
+                        $('#edit_user').modal();
                     }
 
                     // Should have confirmation dialog for this.

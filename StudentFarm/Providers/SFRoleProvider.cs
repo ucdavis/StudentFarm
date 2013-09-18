@@ -221,14 +221,14 @@ namespace StudentFarm.Providers
 
                 foreach (string uName in usernames)
                 {
-                    if (!IsUserInRole(userIds[uName], roleInfo))
-                    {
+                    /* if (!IsUserInRole(userIds[uName], roleInfo))
+                    { */
                         SqlCommand userRoleComm = new SqlCommand();
                         userRoleComm.CommandText = commandText(roleInfo.Table, roleInfo.IdType);
                         userRoleComm.Parameters.Add("@RoleId", System.Data.SqlDbType.Int).Value = roleInfo.Id;
                         userRoleComm.Parameters.Add("@UId", System.Data.SqlDbType.Int).Value = userIds[uName];
                         comms.Add(userRoleComm);
-                    }
+                    /* } */
                 }
             }
 
@@ -554,7 +554,7 @@ namespace StudentFarm.Providers
 
         public override void RemoveUsersFromRoles(string[] usernames, string[] roleNames)
         {
-            UserRolesGeneric(usernames, roleNames, (table, type) => "DELETE FROM " + table + " WHERE UserId = @UserId AND " + type + " = @RoleId");
+            UserRolesGeneric(usernames, roleNames, (table, type) => "DELETE FROM " + table + " WHERE UserId = @UId AND " + type + " = @RoleId");
             /*
             InstConn();
 

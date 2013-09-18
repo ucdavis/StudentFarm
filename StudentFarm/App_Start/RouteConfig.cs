@@ -18,12 +18,6 @@ namespace StudentFarm
                 url: "{controller}/{action}/{id}",
                 defaults: new { controller = "Home", action = "Index", id = UrlParameter.Optional }
             );
-
-            routes.MapRoute(
-                name: "Usernames",
-                url: "Roles/{action}/{name}",
-                defaults: new { controller = "Roles", action = "Edit", name = "" }
-            );
         }
     }
 }
