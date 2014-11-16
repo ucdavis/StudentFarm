@@ -1,4 +1,12 @@
-﻿ @if (ViewBag.edit != -1) {
+﻿ Order Controller Index Page:
+
+ Need to display list of availabilities that can be ordered from.
+ Info needed to do this:
+ Buyer groups for the current user, unless admin, in which case everything can be viewed/edited.
+
+------------- 
+ 
+ @if (ViewBag.edit != -1) {
         <text>
             // Checks the input elements name against an array of names.
             function check(item, names) {

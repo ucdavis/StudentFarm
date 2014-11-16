@@ -26,7 +26,7 @@ namespace StudentFarm.Models
             Id(x => x.Id).GeneratedBy.Identity();
             Map(x => x.Name);
             HasMany(x => x.Availabilities)
-                .Cascade.AllDeleteOrphan()
+                .Cascade.DeleteOrphan()
                 .Fetch.Join()
                 .Inverse()
                 .KeyColumn("BuyerId");

@@ -30,7 +30,7 @@ namespace StudentFarm.Models
                 .Column("OrderId");
             References(x => x.Offered)
                 .Not.Nullable()
-                .Cascade.SaveUpdate()
+                .Cascade.None()
                 .Column("OfferedId");
             Map(x => x.Quantity);
         }

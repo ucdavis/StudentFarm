@@ -1,0 +1,30 @@
+﻿@model IQueryable<StudentFarm.Models.BuyerAvailability>
+
+@{
+    ViewBag.Title = "Orders";
+
+    DateTime weekbegin = ViewBag.WeekBegin;
+}
+
+@section subhead {
+<h2>Orders</h2>
+}
+<p>// Interface? Two ways I can see this happening:
+    1. Display all the available items and have a column for each place, where you put
+     in a number for what they want to order (that's what they already do on the spreadsheet,
+    so nothing new there).
+    2. Display all the places that you're allowed to order for and have some sort of submenu
+    (either a different page or an accordion) for the available items. This method seems possibly
+    less efficient and less in line with what they're used to seeing. If most people only see
+    one place to order from, though, this method could make sense.
+    3. A hybrid system. Allow users to select between the two methods.
+</p>
+@foreach (string test in ViewBag.Buyers.Keys)
+{
+    <p>@test:
+        @foreach (int t in ViewBag.Buyers[test])
+        {
+            <span>@t</span>
+        }
+    </p>
+}

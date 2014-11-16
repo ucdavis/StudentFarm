@@ -14,6 +14,7 @@ namespace StudentFarm.Models
         public virtual CropUnit CropUnit { get; set; }
         public virtual double UnitPrice { get; set; }
         public virtual DateTime? PriceDate { get; set; }
+        public virtual IList<Offered> Offered { get; set; }
 
         public Price()
         {
@@ -31,6 +32,9 @@ namespace StudentFarm.Models
                 .Column("CropUnitId");
             Map(x => x.UnitPrice);
             Map(x => x.PriceDate).Nullable();
+            HasMany(x => x.Offered)
+                .Cascade.DeleteOrphan()
+                .Inverse();
         }
     }
 

@@ -464,9 +464,9 @@ namespace StudentFarm.Providers
                     "LEFT JOIN " +
 	                    "(SELECT Role, UserId " +
 		                    "FROM " +
-			                    "(SELECT Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
+			                    "(SELECT ('r_' + Role) As Role, UserId FROM Roles LEFT JOIN UsersInRoles ON Id = RoleId) roles " +
 		                    "UNION " +
-			                    "(SELECT Name As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
+			                    "(SELECT ('b_' + Name) As Role, UserId FROM Buyers LEFT JOIN UsersInBuyers ON Id = BuyerId) " +
 	                    ") roles ON roles.UserId = u.Id " +
 	                    "WHERE u.Username = @Username";
 

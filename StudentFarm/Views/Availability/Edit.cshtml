@@ -138,8 +138,8 @@
     <table class="table" id="main_tab">
         <tr>
             <th>&nbsp;</th>
-            <th>Product</th>
-            <th>Pack Size</th>
+            <th>Product (e.g., red russian)</th>
+            <th>Pack Size (e.g., bunch, pound)</th>
             <th>Unit Price ($)</th>
             <th class="highlight">Available # of Units</th>
         </tr>
@@ -168,7 +168,10 @@
     </table>
 </form>
 <button id="add" class="btn" type="button"><i class="icon-plus"></i> Add Stuff</button>
-<button id="save" class="btn btn-primary" type="button"><i class="icon-ok"></i> Save</button>
+<br /><br />
+<button id="save" class="btn" type="button"><i class="icon-ok"></i> Save</button>
+<button id="go_back" class="btn btn-primary" type="button"><i class="icon-ok"></i> Save &amp; Go Back</button>
+<button id="cancel" class="btn btn-danger" type="button"><i class="icon-remove"></i> Cancel &amp; Go Back</button>
 
 @if (ViewBag.create)
 {
@@ -314,31 +317,54 @@
         tab.appendChild(row);
     });
 
-    // Set up actions for "Save" button
+    // Set up actions for "Save" and "Save & Go Back" buttons
     var save_btn = document.getElementById('save');
+    var sgb_btn = document.getElementById('go_back');
     @if (ViewBag.edit == -1) {
-        <text>
-            save_btn.addEventListener('click', function (e) {
-                $.post('@(ViewBag.url)availability/create', $('form').first().serialize(), function (data) {
-                    if (data != 'Nope') {
-                        window.location.href = '@(ViewBag.url)availability';
-                    }
-                });
-            });
-        </text>
-    }
-    else 
-    {
-        <text>
-            save_btn.addEventListener('click', function (e) {
-                $.post('@(ViewBag.url)availability/edit/@ViewBag.edit', $('form').first().serialize(), function (data) {
-                    if (data != 'Nope') {
-                        $('#alert-placeholder').append("<div class='alert alert-success'><button type='button' class='close' data-dismiss='alert'>&times;</button>Saved successfully! <a href='@(ViewBag.url)availability'>I'm done editing now!</a></div>");
-                    }
-                });
-            });
+    <text>
+    var path = "create";
     </text>
     }
+    else{
+    <text>
+    var path = "edit/@ViewBag.edit";
+    </text>
+    }    
+
+    save_action = function (action) {
+        if (action == 'save') {
+            return function (e) {
+                $.post('@(ViewBag.url)availability/' + path, $('form').first().serialize(), function (data) {
+                    if (data != 'Nope') {
+                        $('#alert-placeholder').append("<div class='alert alert-success'><button type='button' class='close' data-dismiss='alert'>&times;</button>Saved successfully! <a href='@(ViewBag.url)availability'>I'm done editing now!</a></div>");
+
+                        // Modify save buttons so they do the edit action from now on.
+                        if (path == "create") {
+                            path = 'edit/' + data;
+                        }
+                    }
+                });
+            };
+        }
+        else if (action == 'goback') {
+            return function(e) {
+                $.post('@(ViewBag.url)availability/' + path, $('form').first().serialize(), function (data) {
+                    if (data != 'Nope') {
+                        window.location.href = '@(ViewBag.url)availability?success=1';
+                    }
+                });
+            };
+        }
+    };
+
+    save_btn.addEventListener('click', save_action('save'));
+    sgb_btn.addEventListener('click', save_action('goback'));
+
+    // Set up action for Cancel & Go Back button.
+    var cancel_btn = document.getElementById('cancel');
+    cancel_btn.addEventListener('click', function (e) {
+        window.location.href = '@(ViewBag.url)availability';
+    });
 
     // Set up actions for X buttons.
     $('.remove-button').each(function (i, el) {

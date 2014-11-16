@@ -96,12 +96,12 @@ namespace StudentFarm.Models
             Map(x => x.DateEnd);
             Map(x => x.Comments).Nullable();
             HasMany(x => x.Buyers)
-                .Cascade.AllDeleteOrphan()
+                .Cascade.DeleteOrphan()
                 .Inverse();
                 // .Fetch.Join()
                 // .KeyColumn("AvailabilityId");
             HasMany(x => x.Offered)
-                .Cascade.AllDeleteOrphan()
+                .Cascade.DeleteOrphan()
                 .Inverse();
                 // .Fetch.Join();
                 // .KeyColumn("AvailabilityId");

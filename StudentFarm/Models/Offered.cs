@@ -29,14 +29,15 @@ namespace StudentFarm.Models
             Id(x => x.Id).GeneratedBy.Identity();
             References(x => x.CropPrice)
                 .Not.Nullable()
-                .Cascade.SaveUpdate()
-                .Column("CropPriceId");
+                .Cascade.None()
+                .Column("PriceId"); // The column was originally named CropPriceId, but
+                                    // changed it to PriceId due to a bug in UCDArch.
             References(x => x.Availability)
                 .Not.Nullable()
-                .Cascade.SaveUpdate()
+                .Cascade.None()
                 .Column("AvailabilityId");
             HasMany(x => x.Ordered)
-                .Cascade.All()
+                .Cascade.DeleteOrphan()
                 .Inverse();
             Map(x => x.Quantity);
         }
@@ -46,6 +47,7 @@ namespace StudentFarm.Models
     {
         Offered CreateOrUpdate(CropUnit cu, Price p, double amount, Availability avail, int id);
     }
+
     public class OfferedRepository : Repository<Offered>, IOfferedRepository
     {
         public Offered CreateOrUpdate(CropUnit cu, Price p, double amount, Availability avail, int id = -1)

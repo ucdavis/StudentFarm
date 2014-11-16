@@ -8,12 +8,14 @@
 
 @section subhead {
     <h2>Ordering Guides</h2>
-    <h3>@ViewBag.test</h3>
 }
+
+<div id="alert-placeholder">@(ViewBag.Message)</div>
 
 <a class="btn btn-primary main-action" href="@(ViewBag.url)availability/create">
     <i class="icon-plus"></i> Add Fresh Doohickey
 </a>
+
 <h3>Current Offers</h3>
 <table class="table table-hover">
     <thead>
@@ -39,7 +41,7 @@
     </tbody>
 </table>
     
-<h3>Offers from the <span class="timeunit">Week</span> starting <span id="weekof">@weekbegin.ToShortDateString()</span></h3>
+<h3>Offers from the <span class="timeunit">week</span> starting <span id="weekof">@weekbegin.ToShortDateString()</span></h3>
 <form id="picker">
     <h4>View offers from between
         @Html.AntiForgeryToken()

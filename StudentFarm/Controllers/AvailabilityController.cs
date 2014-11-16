@@ -14,14 +14,14 @@ namespace StudentFarm.Controllers
         private readonly IRepository<Availability> availRepo;
         private readonly ICropRepository cropRepo;
         private readonly IPriceRepository priceRepo;
-        private readonly IRepository<Offered> offerRepo;
+        private readonly IOfferedRepository offerRepo;
         private readonly IUnitRepository unitRepo;
         private readonly ICropUnitRepository cuRepo;
         private readonly IBuyerAvailabilityRepository buyerAvailRepo;
         private readonly IRepository<Buyer> buyerRepo;
 
         public AvailabilityController(IRepository<Availability> availRepo, ICropRepository cropRepo,
-            IPriceRepository priceRepo, IRepository<Offered> offerRepo, IUnitRepository unitRepo,
+            IPriceRepository priceRepo, IOfferedRepository offerRepo, IUnitRepository unitRepo,
             ICropUnitRepository cuRepo, IBuyerAvailabilityRepository buyerAvailRepo, IRepository<Buyer> buyerRepo)
         {
             this.availRepo = availRepo;
@@ -36,11 +36,12 @@ namespace StudentFarm.Controllers
 
         //
         // GET: /Availability/
-        public ActionResult Index()
+        // [Authorize]
+        public ActionResult Index(int success = -1)
         {
-            ViewBag.test = User.Identity.Name;
+            // ViewBag.test = User.Identity.Name;
 
-            Roles.CreateRole("Admin");
+            //Roles.CreateRole("Admin");
 
           //  Roles.AddUsersToRoles(new String[] { "ericflin" }, new String[] { "Admin" });
           //  ViewBag.url = Request.Url.GetLeftPart(UriPartial.Authority) + Url.Content("~/");
@@ -48,6 +49,12 @@ namespace StudentFarm.Controllers
             // Get date of beginning of week.
             DateTime today = DateTime.Now;
             ViewBag.WeekBegin = today.AddDays((int)today.DayOfWeek * -1);
+            switch (success) {
+                case -1: ViewBag.Message = "";
+                    break;
+                case 1: ViewBag.Message = new MvcHtmlString("<div class='alert alert-success'><button type='button' class='close' data-dismiss='alert'>&times;</button>Your edit was saved successfully!</div>");
+                    break;
+            }
 
             return View(this.availRepo.Queryable);
         }
@@ -175,6 +182,20 @@ namespace StudentFarm.Controllers
                 // we want to be able to edit availabilities even after people have kind of made orders.
                 avail.UpdateBuyers(buyers, dBuyer, ostart_d, ostart_t, oend_d, oend_t);
 
+                // Remove offered records as necessary
+                IList<Offered> offered = avail.Offered;
+                foreach (Offered o in offered)
+                {
+                    // Use 'or' here, because we're going to be inefficient and simply delete everything
+                    // new while a user is still editing an availability (i.e., pressed 'Save', but not
+                    // 'Save and Go Back'). The offered_id[] from the new availability page is null,
+                    // and it doesn't get updated when the new availability is saved, hence the == null.
+                    if (offered_id == null || !offered_id.Contains(o.Id))
+                    {
+                        this.offerRepo.Remove(o);
+                    }
+                }
+
                 // Delete/modify/add offered records as necessary
                 // Check for existing CropUnits and associated prices. Create Offered records for everything, creating
                 // new CropUnit records and Price records if necessary.
@@ -189,8 +210,16 @@ namespace StudentFarm.Controllers
                     // Look for a Price record
                     Price p = this.priceRepo.GetOrCreate(cu, unitprice[i]);
 
-                    // Check whether or not this offer existed before editing.
-                    avail.CreateOrUpdateOffer(cu, p, amount[i], offered_id[i]);
+                    // Check whether or not this offer existed before editing. In contrast to above,
+                    // use "and" here, because we need to make sure the offer exists.
+                    if (offered_id != null && offered_id.Length > i)
+                    {
+                        avail.CreateOrUpdateOffer(cu, p, amount[i], offered_id[i]);
+                    }
+                    else
+                    {
+                        avail.CreateOrUpdateOffer(cu, p, amount[i]);
+                    }
                 }
 
                 return Content("Yup");
@@ -254,7 +283,7 @@ namespace StudentFarm.Controllers
                         "</tr>";
             }
 
-            return Json(new Dictionary<String, Object> { {"offers", offers}, {"unit", unitify(start, end)} });
+            return Json(new Dictionary<String, Object> { {"offers", offers}, {"unit", unitify(start, end).ToLower()} });
         }
 
         public String unitify(DateTime start, DateTime end)
